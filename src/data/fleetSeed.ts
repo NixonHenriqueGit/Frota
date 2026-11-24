@@ -13,28 +13,36 @@ import {
   VehicleStatus,
 } from '../types/fleet';
 
+export function normalizeAssetUrl(url: string): string {
+  if (!url) return url;
+  if (url.startsWith('/assets/') || url.startsWith('/src/assets/')) {
+    return `.${url}`;
+  }
+  return url;
+}
+
 export const VEHICLE_PHOTOS: Record<VehicleCategory, string> = {
-  'Caminhão': '/src/assets/images/truck_heavy_fleet_1795264288033.jpg',
-  'Carga Semi-Reboque': '/src/assets/images/truck_heavy_fleet_1795264288033.jpg',
-  'Empilhadeira': '/src/assets/images/forklift_warehouse_fleet_1795264288674.jpg',
-  'Frota Leve': '/src/assets/images/pickup_light_fleet_1795264288385.jpg',
-  'Tração Caminhão Trator': '/src/assets/images/truck_heavy_fleet_1795264288033.jpg',
+  'Caminhão': './src/assets/images/truck_heavy_fleet_1795264288033.jpg',
+  'Carga Semi-Reboque': './src/assets/images/truck_heavy_fleet_1795264288033.jpg',
+  'Empilhadeira': './src/assets/images/forklift_warehouse_fleet_1795264288674.jpg',
+  'Frota Leve': './src/assets/images/pickup_light_fleet_1795264288385.jpg',
+  'Tração Caminhão Trator': './src/assets/images/truck_heavy_fleet_1795264288033.jpg',
 };
 
 export const PLATE_PHOTOS: Record<string, string> = {
-  NPR2601: '/assets/aistudio/LATERAL_NPR2601_1c9ba03f.jpeg',
-  OXO0532: '/assets/aistudio/LATERAL_OXO0532_4fa1d8bb.jpeg',
-  OXO0542: '/assets/aistudio/LATERAL_OXO0542_ce861979.jpeg',
-  OXO0782: '/assets/aistudio/LATERAL_OXO0782_a8235e7e.jpeg',
-  QSK7D92: '/assets/aistudio/LATERAL_QSK7D92_928a914d.jpeg',
-  RLU4H49: '/assets/aistudio/RLU4H49_314cb24e.jpg',
-  RLW0C17: '/assets/aistudio/LATERAL_RLW0C17_d8abdb6c.jpeg',
-  SLB3J76: '/assets/aistudio/LATERAL_SLB3J76_3a3a2c78.jpeg',
-  SLB4A26: '/assets/aistudio/LATERAL_SLB4A26_6a807cb5.jpeg',
-  SLB4A56: '/assets/aistudio/LATERAL_SLB4A56_9515828e.jpeg',
-  TOU7F39: '/assets/aistudio/TOU7F39_4191f85c.jpeg',
-  TOZ8B20: '/assets/aistudio/LATERAL_TOZ8B20_641b08d0.jpeg',
-  TOZ8B50: '/assets/aistudio/LATERAL_TOZ8B50_453e611f.jpeg',
+  NPR2601: './assets/aistudio/LATERAL_NPR2601_1c9ba03f.jpeg',
+  OXO0532: './assets/aistudio/LATERAL_OXO0532_4fa1d8bb.jpeg',
+  OXO0542: './assets/aistudio/LATERAL_OXO0542_ce861979.jpeg',
+  OXO0782: './assets/aistudio/LATERAL_OXO0782_a8235e7e.jpeg',
+  QSK7D92: './assets/aistudio/LATERAL_QSK7D92_928a914d.jpeg',
+  RLU4H49: './assets/aistudio/RLU4H49_314cb24e.jpg',
+  RLW0C17: './assets/aistudio/LATERAL_RLW0C17_d8abdb6c.jpeg',
+  SLB3J76: './assets/aistudio/LATERAL_SLB3J76_3a3a2c78.jpeg',
+  SLB4A26: './assets/aistudio/LATERAL_SLB4A26_6a807cb5.jpeg',
+  SLB4A56: './assets/aistudio/LATERAL_SLB4A56_9515828e.jpeg',
+  TOU7F39: './assets/aistudio/TOU7F39_4191f85c.jpeg',
+  TOZ8B20: './assets/aistudio/LATERAL_TOZ8B20_641b08d0.jpeg',
+  TOZ8B50: './assets/aistudio/LATERAL_TOZ8B50_453e611f.jpeg',
 };
 
 const DEFAULT_PHOTO_SET = new Set(Object.values(VEHICLE_PHOTOS));
@@ -45,8 +53,9 @@ export function resolveVehiclePhoto(
   currentPhotoUrl?: string
 ): string {
   const norm = plate.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-  if (currentPhotoUrl && !DEFAULT_PHOTO_SET.has(currentPhotoUrl)) {
-    return currentPhotoUrl;
+  const normalizedCurrent = currentPhotoUrl ? normalizeAssetUrl(currentPhotoUrl) : '';
+  if (normalizedCurrent && !DEFAULT_PHOTO_SET.has(normalizedCurrent)) {
+    return normalizedCurrent;
   }
   if (PLATE_PHOTOS[norm]) {
     return PLATE_PHOTOS[norm];

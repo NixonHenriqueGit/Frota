@@ -91,6 +91,7 @@ const VALID_LEGALIZED_FOLDERS = new Set<LegalizedFolderName>([
   'CONTRATO DE LOCAÇÃO VEICULAR',
   'CRLV',
   'CRONOTACÓGRAFOS',
+  'LAUDO DE VIGILÂNCIA SANITÁRIA',
 ]);
 const VALID_CRLV_SUBFOLDERS = new Set<CrlvSubfolderName>([
   'ENTREGA',

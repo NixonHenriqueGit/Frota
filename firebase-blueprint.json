@@ -450,7 +450,13 @@
         },
         "folder": {
           "type": "string",
-          "enum": ["ANTT", "CONTRATO DE LOCAÇÃO VEICULAR", "CRLV", "CRONOTACÓGRAFOS"]
+          "enum": [
+            "ANTT",
+            "CONTRATO DE LOCAÇÃO VEICULAR",
+            "CRLV",
+            "CRONOTACÓGRAFOS",
+            "LAUDO DE VIGILÂNCIA SANITÁRIA"
+          ]
         },
         "subfolder": {
           "type": "string",

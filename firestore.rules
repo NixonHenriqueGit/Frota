@@ -212,7 +212,7 @@ service cloud.firestore {
         ]) &&
         isValidId(data.id) &&
         isValidId(data.ownerId) &&
-        data.folder in ['ANTT', 'CONTRATO DE LOCAÇÃO VEICULAR', 'CRLV', 'CRONOTACÓGRAFOS'] &&
+        data.folder in ['ANTT', 'CONTRATO DE LOCAÇÃO VEICULAR', 'CRLV', 'CRONOTACÓGRAFOS', 'LAUDO DE VIGILÂNCIA SANITÁRIA'] &&
         data.subfolder in ['', 'ENTREGA', 'FROTA LEVE', 'PUXADA'] &&
         data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 200 &&
         data.fileType is string && data.fileType.size() <= 120 &&

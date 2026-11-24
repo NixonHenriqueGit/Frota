@@ -81,6 +81,7 @@ import { EvidencesView } from './components/EvidencesView';
 import { ChecklistsView } from './components/ChecklistsView';
 import { LegalizedDocumentsView } from './components/LegalizedDocumentsView';
 import { ProcessGuaranteeView } from './components/ProcessGuaranteeView';
+import { SanitaryLaudoView } from './components/SanitaryLaudoView';
 import { VehicleModal } from './components/VehicleModal';
 import { ImportFleetModal } from './components/ImportFleetModal';
 
@@ -185,6 +186,7 @@ function toLocalEvidenceDocs(list: VehicleEvidenceRecord[]): EvidenceFirestoreDo
 }
 
 const LEGALIZED_SEED_FLAG = 'pau_brasil_legalized_antt_seeded_v1';
+const LEGALIZED_LAUDO_SEED_FLAG = 'pau_brasil_legalized_laudo_seeded_v1';
 
 const INITIAL_LEGALIZED_DOCS: LegalizedDocumentRecord[] = [
   {
@@ -213,31 +215,70 @@ const INITIAL_LEGALIZED_DOCS: LegalizedDocumentRecord[] = [
   },
 ];
 
+const INITIAL_SANITARY_LAUDO_DOC: LegalizedDocumentRecord = {
+  id: 'leg-seed-laudo-vigilancia',
+  folder: 'LAUDO DE VIGILÂNCIA SANITÁRIA',
+  subfolder: '',
+  fileName: 'LAUDO DA VIGILÂNCIA.pdf',
+  fileType: 'application/pdf',
+  fileSize: 685056,
+  plate: 'GERAL',
+  expiryDate: '',
+  referenceDate: '17/07/2026',
+  notes: 'Laudo da Vigilância Sanitária (10:16) — clique em Anexar PDF para carregar o arquivo',
+  uploadedAt: '17/07/2026',
+};
+
 function readLocalLegalizedDocs(): LegalizedDocFirestoreDoc[] {
   try {
     const raw = localStorage.getItem(LEGALIZED_STORAGE_KEY);
     const parsed = raw ? (JSON.parse(raw) as LegalizedDocumentRecord[]) : [];
-    const existingList: LegalizedDocFirestoreDoc[] = Array.isArray(parsed)
+    let currentList: LegalizedDocFirestoreDoc[] = Array.isArray(parsed)
       ? parsed.map((d) => ({ ...d, ownerId: SHARED_WORKSPACE_ID }))
       : [];
+    let changed = false;
 
     if (localStorage.getItem(LEGALIZED_SEED_FLAG) !== '1') {
-      const existingIds = new Set(existingList.map((d) => d.id));
+      const existingIds = new Set(currentList.map((d) => d.id));
       const seeded = INITIAL_LEGALIZED_DOCS.filter((d) => !existingIds.has(d.id)).map((d) => ({
         ...d,
         ownerId: SHARED_WORKSPACE_ID,
       }));
-      const merged = [...existingList, ...seeded];
-      writeLocalLegalizedDocs(merged);
+      if (seeded.length > 0) {
+        currentList = [...currentList, ...seeded];
+        changed = true;
+      }
       localStorage.setItem(LEGALIZED_SEED_FLAG, '1');
-      return merged;
     }
 
-    return existingList;
+    if (localStorage.getItem(LEGALIZED_LAUDO_SEED_FLAG) !== '1') {
+      const hasLaudo = currentList.some(
+        (d) =>
+          d.id === INITIAL_SANITARY_LAUDO_DOC.id ||
+          d.folder === 'LAUDO DE VIGILÂNCIA SANITÁRIA'
+      );
+      if (!hasLaudo) {
+        currentList = [
+          ...currentList,
+          { ...INITIAL_SANITARY_LAUDO_DOC, ownerId: SHARED_WORKSPACE_ID },
+        ];
+        changed = true;
+      }
+      localStorage.setItem(LEGALIZED_LAUDO_SEED_FLAG, '1');
+    }
+
+    if (changed) {
+      writeLocalLegalizedDocs(currentList);
+    }
+
+    return currentList;
   } catch {
     // Ignore local storage errors
   }
-  return INITIAL_LEGALIZED_DOCS.map((d) => ({ ...d, ownerId: SHARED_WORKSPACE_ID }));
+  return [...INITIAL_LEGALIZED_DOCS, INITIAL_SANITARY_LAUDO_DOC].map((d) => ({
+    ...d,
+    ownerId: SHARED_WORKSPACE_ID,
+  }));
 }
 
 function writeLocalLegalizedDocs(items: LegalizedDocumentRecord[]): void {
@@ -501,6 +542,20 @@ export default function App() {
         const list = snapshot.docs.map((d) =>
           mapDocToLegalizedDoc(d.data() as Record<string, unknown>)
         );
+        const hasLaudo = list.some((d) => d.folder === 'LAUDO DE VIGILÂNCIA SANITÁRIA');
+        if (!hasLaudo && localStorage.getItem('pau_brasil_laudo_remote_seeded_v1') !== '1') {
+          localStorage.setItem('pau_brasil_laudo_remote_seeded_v1', '1');
+          void addLegalizedDocInFirestore(
+            INITIAL_SANITARY_LAUDO_DOC,
+            SHARED_WORKSPACE_ID,
+            nowTimestamp()
+          ).catch((err) => {
+            if (isPermissionDeniedError(err) && active) {
+              setLegalizedLocalMode(true);
+              setLegalizedDocs(readLocalLegalizedDocs());
+            }
+          });
+        }
         setLegalizedDocs(list);
       },
       (error) => {
@@ -531,6 +586,16 @@ export default function App() {
       fileDataUrl: localLegalizedFileMap[d.id] || d.fileDataUrl,
     }));
   }, [legalizedDocs, localLegalizedFileMap]);
+
+  const legalized111Docs = useMemo(
+    () => resolvedLegalizedDocs.filter((d) => d.folder !== 'LAUDO DE VIGILÂNCIA SANITÁRIA'),
+    [resolvedLegalizedDocs]
+  );
+
+  const sanitaryLaudoDocs = useMemo(
+    () => resolvedLegalizedDocs.filter((d) => d.folder === 'LAUDO DE VIGILÂNCIA SANITÁRIA'),
+    [resolvedLegalizedDocs]
+  );
 
   const vehicles: VehicleFirestoreDoc[] = useMemo(() => {
     return rawVehicles.map((v) => {
@@ -1303,7 +1368,7 @@ export default function App() {
             <>
               {activeSection === 'documentos-legalizados' && (
                 <LegalizedDocumentsView
-                  records={resolvedLegalizedDocs}
+                  records={legalized111Docs}
                   vehicles={vehicles}
                   onAddRecords={handleAddLegalizedDocs}
                   onUpdateRecord={handleUpdateLegalizedDoc}
@@ -1313,6 +1378,16 @@ export default function App() {
 
               {activeSection === 'processo-garantia' && (
                 <ProcessGuaranteeView />
+              )}
+
+              {activeSection === 'laudo-vigilancia' && (
+                <SanitaryLaudoView
+                  records={sanitaryLaudoDocs}
+                  vehicles={vehicles}
+                  onAddRecords={handleAddLegalizedDocs}
+                  onUpdateRecord={handleUpdateLegalizedDoc}
+                  onDeleteRecord={handleDeleteLegalizedDoc}
+                />
               )}
 
               {activeSection === 'visao-geral' && (

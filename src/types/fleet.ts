@@ -154,7 +154,8 @@ export type LegalizedFolderName =
   | 'ANTT'
   | 'CONTRATO DE LOCAÇÃO VEICULAR'
   | 'CRLV'
-  | 'CRONOTACÓGRAFOS';
+  | 'CRONOTACÓGRAFOS'
+  | 'LAUDO DE VIGILÂNCIA SANITÁRIA';
 
 export type CrlvSubfolderName = 'ENTREGA' | 'FROTA LEVE' | 'PUXADA';
 
@@ -176,6 +177,7 @@ export interface LegalizedDocumentRecord {
 export type NavSection =
   | 'documentos-legalizados'
   | 'processo-garantia'
+  | 'laudo-vigilancia'
   | 'visao-geral'
   | 'cadastro'
   | 'documentos'
