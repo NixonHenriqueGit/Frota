@@ -1,0 +1,171 @@
+import React from 'react';
+import {
+  Calendar,
+  Camera,
+  ClipboardCheck,
+  FileText,
+  Home,
+  Menu,
+  Plus,
+  Truck,
+} from 'lucide-react';
+import { NavSection } from '../types/fleet';
+
+interface HeaderBarProps {
+  activeSection: NavSection;
+  lastUpdated: string;
+  onSelectSection: (section: NavSection) => void;
+  onToggleMenu: () => void;
+  onAddVehicle: () => void;
+}
+
+const SECTION_HEADERS: Record<NavSection, { context: string; subtitle: string }> = {
+  'documentos-legalizados': {
+    context: 'Frota Pau Brasil – Brejo',
+    subtitle:
+      'Pastas oficiais da frota: ANTT, Contrato de Locação Veicular, CRLV e Cronotacógrafos',
+  },
+  'visao-geral': {
+    context: 'Frota Pau Brasil – Brejo',
+    subtitle: 'Acompanhe em tempo real o desempenho e a documentação da frota',
+  },
+  cadastro: {
+    context: 'Cadastro de Frota',
+    subtitle: 'Gerencie os veículos, especificações técnicas e importação em lote',
+  },
+  documentos: {
+    context: 'Vencimentos e Certidões',
+    subtitle: 'Monitore vencimentos de CRLV, IPVA, ANTT, Cronotacógrafo e Extintores',
+  },
+  evidencias: {
+    context: 'Evidências Anexadas',
+    subtitle: 'Valide comprovantes digitais e situação documental de cada veículo',
+  },
+  checklists: {
+    context: 'Checklists de Inspeção',
+    subtitle: 'Acompanhe os 15 itens de segurança e conformidade por veículo',
+  },
+};
+
+const SUB_TABS: {
+  id: NavSection;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { id: 'visao-geral', label: 'Visão Geral', icon: Home },
+  { id: 'cadastro', label: 'Cadastro de Frota', icon: Truck },
+  { id: 'documentos', label: 'Documentos', icon: FileText },
+  { id: 'evidencias', label: 'Evidências', icon: Camera },
+  { id: 'checklists', label: 'Checklists', icon: ClipboardCheck },
+];
+
+export const HeaderBar: React.FC<HeaderBarProps> = ({
+  activeSection,
+  lastUpdated,
+  onSelectSection,
+  onToggleMenu,
+  onAddVehicle,
+}) => {
+  const { context, subtitle } = SECTION_HEADERS[activeSection];
+  const [datePart, timePart] = lastUpdated.split(' ');
+
+  return (
+    <header className="sticky top-0 z-30 bg-gradient-to-b from-white via-white to-[#F7FAFE] border-b border-slate-200/90 shadow-[0_2px_12px_rgba(6,41,90,0.05)] px-4 sm:px-5 pt-2.5 pb-2 no-print">
+      {/* Top Row: Module Title & Primary Action */}
+      <div className="flex items-center justify-between gap-4 pb-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={onToggleMenu}
+            aria-label="Abrir menu lateral"
+            className="md:hidden p-2 -ml-1 rounded-lg text-[#06295A] hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1565D8]/50 transition-colors cursor-pointer shrink-0"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <div className="min-w-0">
+            <h1 className="font-display text-base sm:text-[1.22rem] font-extrabold text-[#06295A] tracking-tight leading-tight truncate">
+              <span className="text-[#1256BA]">
+                {activeSection === 'documentos-legalizados'
+                  ? '1.1.1 Documentos Legalizados'
+                  : '1.1.2 Controle de Documentos'}
+              </span>
+              <span className="mx-2 text-slate-300 font-normal" aria-hidden="true">
+                |
+              </span>
+              <span>{context}</span>
+            </h1>
+            <p className="text-[0.77rem] text-slate-500 mt-0.5 truncate leading-tight">
+              {subtitle}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="hidden md:flex items-center gap-2 text-xs text-slate-600">
+            <Calendar className="w-4 h-4 text-[#1565D8] shrink-0" />
+            <div className="leading-tight">
+              <span className="block text-[10.5px] font-medium text-slate-500">
+                Atualizado em
+              </span>
+              <span className="font-mono-tabular text-[0.8rem] font-bold text-[#06295A]">
+                {datePart}
+                {timePart ? (
+                  <span className="ml-1.5 font-semibold text-slate-600">{timePart}</span>
+                ) : null}
+              </span>
+            </div>
+          </div>
+
+          <span className="hidden md:block h-6 w-px bg-slate-200" aria-hidden="true" />
+
+          <button
+            type="button"
+            onClick={onAddVehicle}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-xl bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#1565D8] hover:brightness-110 active:scale-[0.99] text-white text-xs sm:text-[0.82rem] font-semibold shadow-[0_4px_12px_rgba(11,60,125,0.24)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1565D8]/60 transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Novo Veículo</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Sub-navigation Menu Rail (1.1.2 Controle de Documentos) */}
+      {activeSection !== 'documentos-legalizados' && (
+        <div className="pt-1.5 border-t border-slate-200/70">
+          <nav
+            aria-label="Subseções de 1.1.2 Controle de Documentos"
+            className="inline-flex items-center gap-1 p-1 rounded-xl bg-[#EAF1FA] border border-[#D6E2F2] max-w-full overflow-x-auto"
+          >
+            {SUB_TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeSection === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => onSelectSection(tab.id)}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`group inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-[34px] rounded-lg text-[0.82rem] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1565D8]/50 transition-all duration-150 cursor-pointer ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#1565D8] text-white font-semibold shadow-[0_2px_8px_rgba(11,60,125,0.28)]'
+                      : 'text-slate-600 font-medium hover:text-[#06295A] hover:bg-white/90 hover:shadow-[0_1px_3px_rgba(15,23,42,0.06)]'
+                  }`}
+                >
+                  <Icon
+                    className={`w-3.5 h-3.5 shrink-0 transition-colors duration-150 ${
+                      isActive
+                        ? 'text-blue-200'
+                        : 'text-slate-400 group-hover:text-[#1565D8]'
+                    }`}
+                  />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      )}
+    </header>
+  );
+};

@@ -1,0 +1,524 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil privado do usuário autenticado para acesso ao painel de gestão de frotas.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID do usuário no Firebase Auth."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Nome de exibição do usuário."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 200,
+          "description": "E-mail verificado do usuário."
+        },
+        "photoURL": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 1024,
+          "description": "URL da foto de perfil."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Carimbo de criação gerado pelo servidor."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Carimbo da última atualização gerado pelo servidor."
+        }
+      },
+      "required": ["uid", "displayName", "email", "photoURL", "createdAt", "updatedAt"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Registro de administrador autorizado no sistema de frotas.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID do administrador."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 200,
+          "description": "E-mail do administrador."
+        },
+        "grantedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID do administrador que concedeu o acesso."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data de criação no servidor."
+        }
+      },
+      "required": ["uid", "email", "grantedBy", "createdAt"]
+    },
+    "FleetMeta": {
+      "title": "FleetMeta",
+      "description": "Metadados operacionais da frota por proprietário.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID do proprietário da frota."
+        },
+        "lastUpdatedDisplay": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Texto formatado da última atualização exibida no cabeçalho."
+        },
+        "initialized": {
+          "type": "boolean",
+          "description": "Indica se o espaço do usuário já foi inicializado ou sincronizado."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data de criação no servidor."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data de atualização no servidor."
+        }
+      },
+      "required": ["ownerId", "lastUpdatedDisplay", "initialized", "createdAt", "updatedAt"]
+    },
+    "ExpiryDates": {
+      "title": "ExpiryDates",
+      "description": "Datas de vencimento dos documentos obrigatórios do veículo.",
+      "type": "object",
+      "properties": {
+        "crlv": { "type": "string", "maxLength": 40 },
+        "ipva": { "type": "string", "maxLength": 40 },
+        "antt": { "type": "string", "maxLength": 40 },
+        "cnt": { "type": "string", "maxLength": 40 },
+        "alvaraSanitario": { "type": "string", "maxLength": 40 },
+        "extintor": { "type": "string", "maxLength": 40 },
+        "cronotacografo": { "type": "string", "maxLength": 40 }
+      },
+      "required": ["crlv", "ipva", "antt", "cnt", "alvaraSanitario", "extintor", "cronotacografo"]
+    },
+    "VehicleChecklist": {
+      "title": "VehicleChecklist",
+      "description": "Itens de inspeção de segurança do veículo (15 itens booleanos).",
+      "type": "object",
+      "properties": {
+        "macaco": { "type": "boolean" },
+        "chaveRoda": { "type": "boolean" },
+        "caboForca": { "type": "boolean" },
+        "pinoCambao": { "type": "boolean" },
+        "triangulo": { "type": "boolean" },
+        "extintor": { "type": "boolean" },
+        "cofre": { "type": "boolean" },
+        "tacografo": { "type": "boolean" },
+        "step": { "type": "boolean" },
+        "plataforma": { "type": "boolean" },
+        "estribo": { "type": "boolean" },
+        "kitErgonomico": { "type": "boolean" },
+        "sensorCinto": { "type": "boolean" },
+        "cones": { "type": "boolean" },
+        "pneus": { "type": "boolean" }
+      },
+      "required": [
+        "macaco",
+        "chaveRoda",
+        "caboForca",
+        "pinoCambao",
+        "triangulo",
+        "extintor",
+        "cofre",
+        "tacografo",
+        "step",
+        "plataforma",
+        "estribo",
+        "kitErgonomico",
+        "sensorCinto",
+        "cones",
+        "pneus"
+      ]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Cadastro completo de veículo da frota com todas as colunas da planilha, vencimentos e checklist.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "plate": { "type": "string", "minLength": 1, "maxLength": 20 },
+        "fleetNumber": { "type": "string", "maxLength": 40 },
+        "typeCode": { "type": "string", "maxLength": 40 },
+        "category": {
+          "type": "string",
+          "enum": ["Caminhão", "Moto", "Cavalo Mecânico", "Carreta", "Frota Leve", "Empilhadeira"]
+        },
+        "sector": {
+          "type": "string",
+          "enum": ["Distribuição", "Vendas", "Puxada", "Armazém", "Marketing"]
+        },
+        "company": {
+          "type": "string",
+          "enum": ["Pau Brasil Matriz", "Pau Brasil Brejo", "Terceirizados"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Ativo", "Parado"]
+        },
+        "manufacturer": { "type": "string", "maxLength": 80 },
+        "model": { "type": "string", "maxLength": 120 },
+        "manufacturerModel": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "axles": { "type": "string", "maxLength": 30 },
+        "yearFab": { "type": "number" },
+        "yearMod": { "type": "number" },
+        "color": { "type": "string", "maxLength": 40 },
+        "logoBrand": { "type": "string", "maxLength": 40 },
+        "operationYear": { "type": "string", "maxLength": 30 },
+        "kmOrHours": { "type": "number" },
+        "unit": { "type": "string", "enum": ["km", "h"] },
+        "bodywork": { "type": "string", "maxLength": 60 },
+        "tare": { "type": "string", "maxLength": 40 },
+        "pbt": { "type": "string", "maxLength": 40 },
+        "ownership": { "type": "string", "enum": ["Próprio", "Terceiro"] },
+        "hbFrota": { "type": "boolean" },
+        "renavam": { "type": "string", "maxLength": 40 },
+        "chassi": { "type": "string", "maxLength": 40 },
+        "extinguisherSerial": { "type": "string", "maxLength": 50 },
+        "tankCapacity": { "type": "string", "maxLength": 40 },
+        "capacityPallets": { "type": "string", "maxLength": 30 },
+        "cargoCapacity": { "type": "string", "maxLength": 40 },
+        "fuelType": { "type": "string", "maxLength": 40 },
+        "status2": { "type": "string", "maxLength": 60 },
+        "fipeValue": { "type": "number" },
+        "currentValue": { "type": "number" },
+        "fipeCode": { "type": "string", "maxLength": 40 },
+        "fleetAgeYears": { "type": "string", "maxLength": 30 },
+        "replacementTermYears": { "type": "string", "maxLength": 30 },
+        "replacementTermKmHours": { "type": "string", "maxLength": 40 },
+        "expectedReplacementMonthYear": { "type": "string", "maxLength": 30 },
+        "purchaseYear": { "type": "string", "maxLength": 30 },
+        "fleetAgeYearMonths": { "type": "string", "maxLength": 40 },
+        "finalStatus": { "type": "string", "maxLength": 80 },
+        "expiryDates": { "$ref": "#/entities/ExpiryDates" },
+        "checklist": { "$ref": "#/entities/VehicleChecklist" },
+        "photoUrl": { "type": "string", "maxLength": 512 },
+        "periodBucket": { "type": "string", "enum": ["30d", "6m", "12m"] },
+        "lastUpdated": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "plate",
+        "fleetNumber",
+        "typeCode",
+        "category",
+        "sector",
+        "company",
+        "status",
+        "manufacturer",
+        "model",
+        "manufacturerModel",
+        "axles",
+        "yearFab",
+        "yearMod",
+        "color",
+        "logoBrand",
+        "operationYear",
+        "kmOrHours",
+        "unit",
+        "bodywork",
+        "tare",
+        "pbt",
+        "ownership",
+        "hbFrota",
+        "renavam",
+        "chassi",
+        "extinguisherSerial",
+        "tankCapacity",
+        "capacityPallets",
+        "cargoCapacity",
+        "fuelType",
+        "status2",
+        "fipeValue",
+        "currentValue",
+        "fipeCode",
+        "fleetAgeYears",
+        "replacementTermYears",
+        "replacementTermKmHours",
+        "expectedReplacementMonthYear",
+        "purchaseYear",
+        "fleetAgeYearMonths",
+        "finalStatus",
+        "expiryDates",
+        "checklist",
+        "photoUrl",
+        "periodBucket",
+        "lastUpdated",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VehiclePhoto": {
+      "title": "VehiclePhoto",
+      "description": "Foto personalizada enviada pelo usuário para um veículo específico.",
+      "type": "object",
+      "properties": {
+        "vehicleId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "plate": { "type": "string", "minLength": 1, "maxLength": 20 },
+        "dataUrl": { "type": "string", "minLength": 1, "maxLength": 450000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["vehicleId", "ownerId", "plate", "dataUrl", "createdAt", "updatedAt"]
+    },
+    "VehicleDocument": {
+      "title": "VehicleDocument",
+      "description": "Registro documental de vencimento e protocolo vinculado a um veículo.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "vehicleId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "plate": { "type": "string", "minLength": 1, "maxLength": 20 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "sector": {
+          "type": "string",
+          "enum": ["Distribuição", "Vendas", "Puxada", "Armazém", "Marketing"]
+        },
+        "type": {
+          "type": "string",
+          "enum": ["CRLV", "IPVA", "Cronotacógrafo", "ANTT", "Alvará Vigilância Sanitária", "Extintor"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Regular", "A vencer", "Vencido"]
+        },
+        "expiryDate": { "type": "string", "maxLength": 40 },
+        "protocol": { "type": "string", "maxLength": 80 },
+        "responsible": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "vehicleId",
+        "plate",
+        "model",
+        "sector",
+        "type",
+        "status",
+        "expiryDate",
+        "protocol",
+        "responsible",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VehicleEvidence": {
+      "title": "VehicleEvidence",
+      "description": "Matriz de evidências documentais (CRLV, CNT, ANTT) anexadas por veículo.",
+      "type": "object",
+      "properties": {
+        "vehicleId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "plate": { "type": "string", "minLength": 1, "maxLength": 20 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "sector": {
+          "type": "string",
+          "enum": ["Distribuição", "Vendas", "Puxada", "Armazém", "Marketing"]
+        },
+        "crlv": { "type": "boolean" },
+        "cnt": { "type": "boolean" },
+        "antt": { "type": "boolean" },
+        "crlvFile": { "type": "string", "maxLength": 200 },
+        "cntFile": { "type": "string", "maxLength": 200 },
+        "anttFile": { "type": "string", "maxLength": 200 },
+        "updatedDate": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "vehicleId",
+        "ownerId",
+        "plate",
+        "model",
+        "sector",
+        "crlv",
+        "cnt",
+        "antt",
+        "crlvFile",
+        "cntFile",
+        "anttFile",
+        "updatedDate",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LegalizedDoc": {
+      "title": "LegalizedDoc",
+      "description": "Arquivo e registro documental organizado nas pastas de 1.1.1 Documentos Legalizados.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "folder": {
+          "type": "string",
+          "enum": ["ANTT", "CONTRATO DE LOCAÇÃO VEICULAR", "CRLV", "CRONOTACÓGRAFOS"]
+        },
+        "subfolder": {
+          "type": "string",
+          "enum": ["", "ENTREGA", "FROTA LEVE", "PUXADA"]
+        },
+        "fileName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "fileType": { "type": "string", "maxLength": 120 },
+        "fileSize": { "type": "number" },
+        "plate": { "type": "string", "maxLength": 20 },
+        "expiryDate": { "type": "string", "maxLength": 40 },
+        "referenceDate": { "type": "string", "maxLength": 40 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "uploadedAt": { "type": "string", "maxLength": 40 },
+        "fileDataUrl": { "type": "string", "maxLength": 450000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "folder",
+        "subfolder",
+        "fileName",
+        "fileType",
+        "fileSize",
+        "plate",
+        "expiryDate",
+        "referenceDate",
+        "notes",
+        "uploadedAt",
+        "fileDataUrl",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Perfis privados de usuários autenticados."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Lista de administradores autorizados a gerenciar toda a frota."
+    },
+    "/fleetMeta/{metaId}": {
+      "schema": { "$ref": "#/entities/FleetMeta" },
+      "description": "Metadados de atualização e sincronização da frota por proprietário."
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": { "$ref": "#/entities/Vehicle" },
+      "description": "Veículos cadastrados na frota."
+    },
+    "/vehiclePhotos/{vehicleId}": {
+      "schema": { "$ref": "#/entities/VehiclePhoto" },
+      "description": "Fotos customizadas enviadas pelos usuários para cada veículo."
+    },
+    "/documents/{docId}": {
+      "schema": { "$ref": "#/entities/VehicleDocument" },
+      "description": "Documentos e vencimentos vinculados aos veículos da frota."
+    },
+    "/evidences/{vehicleId}": {
+      "schema": { "$ref": "#/entities/VehicleEvidence" },
+      "description": "Status de evidências documentais anexadas (CRLV, CNT, ANTT) por veículo."
+    },
+    "/legalizedDocs/{docId}": {
+      "schema": { "$ref": "#/entities/LegalizedDoc" },
+      "description": "Arquivos e registros das pastas de 1.1.1 Documentos Legalizados."
+    }
+  }
+}

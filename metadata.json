@@ -1,0 +1,6 @@
+{
+  "name": "Pau Brasil — Gestão de Frotas e Documentos",
+  "description": "Plataforma de gestão de documentos, cadastro de veículos, evidências, checklists e condutores da Frota Pau Brasil – Brejo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

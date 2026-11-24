@@ -1,0 +1,389 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Reusable Global Primitives ---
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string &&
+        id.size() >= 1 &&
+        id.size() <= 128 &&
+        id.matches('^[-a-zA-Z0-9_]+$');
+    }
+
+    function hasExactKeySet(k, keys) {
+      return k.hasAll(keys) && k.hasOnly(keys);
+    }
+
+    function hasExactKeys(m, keys) {
+      return hasExactKeySet(m.keys(), keys);
+    }
+
+    // --- Validation Blueprints ---
+    function isValidFleetMeta(data) {
+      return hasExactKeys(data, ['ownerId', 'lastUpdatedDisplay', 'initialized', 'createdAt', 'updatedAt']) &&
+        isValidId(data.ownerId) &&
+        data.lastUpdatedDisplay is string &&
+        data.lastUpdatedDisplay.size() >= 1 &&
+        data.lastUpdatedDisplay.size() <= 40 &&
+        data.initialized is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidExpiryDates(exp) {
+      return exp is map &&
+        hasExactKeys(exp, ['crlv', 'ipva', 'antt', 'cnt', 'alvaraSanitario', 'extintor', 'cronotacografo']) &&
+        exp.crlv is string && exp.crlv.size() <= 40 &&
+        exp.ipva is string && exp.ipva.size() <= 40 &&
+        exp.antt is string && exp.antt.size() <= 40 &&
+        exp.cnt is string && exp.cnt.size() <= 40 &&
+        exp.alvaraSanitario is string && exp.alvaraSanitario.size() <= 40 &&
+        exp.extintor is string && exp.extintor.size() <= 40 &&
+        exp.cronotacografo is string && exp.cronotacografo.size() <= 40;
+    }
+
+    function isValidVehicleChecklist(chk) {
+      return chk is map &&
+        hasExactKeys(chk, [
+          'macaco', 'chaveRoda', 'caboForca', 'pinoCambao', 'triangulo',
+          'extintor', 'cofre', 'tacografo', 'step', 'plataforma',
+          'estribo', 'kitErgonomico', 'sensorCinto', 'cones', 'pneus'
+        ]) &&
+        chk.macaco is bool &&
+        chk.chaveRoda is bool &&
+        chk.caboForca is bool &&
+        chk.pinoCambao is bool &&
+        chk.triangulo is bool &&
+        chk.extintor is bool &&
+        chk.cofre is bool &&
+        chk.tacografo is bool &&
+        chk.step is bool &&
+        chk.plataforma is bool &&
+        chk.estribo is bool &&
+        chk.kitErgonomico is bool &&
+        chk.sensorCinto is bool &&
+        chk.cones is bool &&
+        chk.pneus is bool;
+    }
+
+    function isValidVehicle(data) {
+      return hasExactKeys(data, [
+          'id', 'ownerId', 'plate', 'fleetNumber', 'typeCode', 'category',
+          'sector', 'company', 'status', 'manufacturer', 'model',
+          'manufacturerModel', 'axles', 'yearFab', 'yearMod', 'color',
+          'logoBrand', 'operationYear', 'kmOrHours', 'unit', 'bodywork',
+          'tare', 'pbt', 'ownership', 'hbFrota', 'renavam', 'chassi',
+          'extinguisherSerial', 'tankCapacity', 'capacityPallets',
+          'cargoCapacity', 'fuelType', 'status2', 'fipeValue',
+          'currentValue', 'fipeCode', 'fleetAgeYears',
+          'replacementTermYears', 'replacementTermKmHours',
+          'expectedReplacementMonthYear', 'purchaseYear',
+          'fleetAgeYearMonths', 'finalStatus', 'expiryDates',
+          'checklist', 'photoUrl', 'periodBucket', 'lastUpdated',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        isValidId(data.ownerId) &&
+        data.plate is string && data.plate.size() >= 1 && data.plate.size() <= 20 &&
+        data.fleetNumber is string && data.fleetNumber.size() <= 40 &&
+        data.typeCode is string && data.typeCode.size() <= 40 &&
+        data.category in ['Caminhão', 'Moto', 'Cavalo Mecânico', 'Carreta', 'Frota Leve', 'Empilhadeira'] &&
+        data.sector in ['Distribuição', 'Vendas', 'Puxada', 'Armazém', 'Marketing'] &&
+        data.company in ['Pau Brasil Matriz', 'Pau Brasil Brejo', 'Terceirizados'] &&
+        data.status in ['Ativo', 'Parado'] &&
+        data.manufacturer is string && data.manufacturer.size() <= 80 &&
+        data.model is string && data.model.size() <= 120 &&
+        data.manufacturerModel is string && data.manufacturerModel.size() >= 1 && data.manufacturerModel.size() <= 160 &&
+        data.axles is string && data.axles.size() <= 30 &&
+        data.yearFab is number &&
+        data.yearMod is number &&
+        data.color is string && data.color.size() <= 40 &&
+        data.logoBrand is string && data.logoBrand.size() <= 40 &&
+        data.operationYear is string && data.operationYear.size() <= 30 &&
+        data.kmOrHours is number &&
+        data.kmOrHours >= 0 &&
+        data.unit in ['km', 'h'] &&
+        data.bodywork is string && data.bodywork.size() <= 60 &&
+        data.tare is string && data.tare.size() <= 40 &&
+        data.pbt is string && data.pbt.size() <= 40 &&
+        data.ownership in ['Próprio', 'Terceiro'] &&
+        data.hbFrota is bool &&
+        data.renavam is string && data.renavam.size() <= 40 &&
+        data.chassi is string && data.chassi.size() <= 40 &&
+        data.extinguisherSerial is string && data.extinguisherSerial.size() <= 50 &&
+        data.tankCapacity is string && data.tankCapacity.size() <= 40 &&
+        data.capacityPallets is string && data.capacityPallets.size() <= 30 &&
+        data.cargoCapacity is string && data.cargoCapacity.size() <= 40 &&
+        data.fuelType is string && data.fuelType.size() <= 40 &&
+        data.status2 is string && data.status2.size() <= 60 &&
+        data.fipeValue is number &&
+        data.fipeValue >= 0 &&
+        data.currentValue is number &&
+        data.currentValue >= 0 &&
+        data.fipeCode is string && data.fipeCode.size() <= 40 &&
+        data.fleetAgeYears is string && data.fleetAgeYears.size() <= 30 &&
+        data.replacementTermYears is string && data.replacementTermYears.size() <= 30 &&
+        data.replacementTermKmHours is string && data.replacementTermKmHours.size() <= 40 &&
+        data.expectedReplacementMonthYear is string && data.expectedReplacementMonthYear.size() <= 30 &&
+        data.purchaseYear is string && data.purchaseYear.size() <= 30 &&
+        data.fleetAgeYearMonths is string && data.fleetAgeYearMonths.size() <= 40 &&
+        data.finalStatus is string && data.finalStatus.size() <= 80 &&
+        isValidExpiryDates(data.expiryDates) &&
+        isValidVehicleChecklist(data.checklist) &&
+        data.photoUrl is string && data.photoUrl.size() <= 512 &&
+        data.periodBucket in ['30d', '6m', '12m'] &&
+        data.lastUpdated is string && data.lastUpdated.size() <= 40 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVehiclePhoto(data) {
+      return hasExactKeys(data, ['vehicleId', 'ownerId', 'plate', 'dataUrl', 'createdAt', 'updatedAt']) &&
+        isValidId(data.vehicleId) &&
+        isValidId(data.ownerId) &&
+        data.plate is string && data.plate.size() >= 1 && data.plate.size() <= 20 &&
+        data.dataUrl is string && data.dataUrl.size() >= 1 && data.dataUrl.size() <= 450000 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVehicleDocument(data) {
+      return hasExactKeys(data, [
+          'id', 'ownerId', 'vehicleId', 'plate', 'model', 'sector',
+          'type', 'status', 'expiryDate', 'protocol', 'responsible',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        isValidId(data.ownerId) &&
+        isValidId(data.vehicleId) &&
+        data.plate is string && data.plate.size() >= 1 && data.plate.size() <= 20 &&
+        data.model is string && data.model.size() >= 1 && data.model.size() <= 160 &&
+        data.sector in ['Distribuição', 'Vendas', 'Puxada', 'Armazém', 'Marketing'] &&
+        data.type in ['CRLV', 'IPVA', 'Cronotacógrafo', 'ANTT', 'Alvará Vigilância Sanitária', 'Extintor'] &&
+        data.status in ['Regular', 'A vencer', 'Vencido'] &&
+        data.expiryDate is string && data.expiryDate.size() <= 40 &&
+        data.protocol is string && data.protocol.size() <= 80 &&
+        data.responsible is string && data.responsible.size() <= 100 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVehicleEvidence(data) {
+      return hasExactKeys(data, [
+          'vehicleId', 'ownerId', 'plate', 'model', 'sector',
+          'crlv', 'cnt', 'antt', 'crlvFile', 'cntFile', 'anttFile',
+          'updatedDate', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.vehicleId) &&
+        isValidId(data.ownerId) &&
+        data.plate is string && data.plate.size() >= 1 && data.plate.size() <= 20 &&
+        data.model is string && data.model.size() >= 1 && data.model.size() <= 160 &&
+        data.sector in ['Distribuição', 'Vendas', 'Puxada', 'Armazém', 'Marketing'] &&
+        data.crlv is bool &&
+        data.cnt is bool &&
+        data.antt is bool &&
+        data.crlvFile is string && data.crlvFile.size() <= 200 &&
+        data.cntFile is string && data.cntFile.size() <= 200 &&
+        data.anttFile is string && data.anttFile.size() <= 200 &&
+        data.updatedDate is string && data.updatedDate.size() <= 40 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidLegalizedDoc(data) {
+      return hasExactKeys(data, [
+          'id', 'ownerId', 'folder', 'subfolder', 'fileName', 'fileType', 'fileSize',
+          'plate', 'expiryDate', 'referenceDate', 'notes', 'uploadedAt',
+          'fileDataUrl', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        isValidId(data.ownerId) &&
+        data.folder in ['ANTT', 'CONTRATO DE LOCAÇÃO VEICULAR', 'CRLV', 'CRONOTACÓGRAFOS'] &&
+        data.subfolder in ['', 'ENTREGA', 'FROTA LEVE', 'PUXADA'] &&
+        data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 200 &&
+        data.fileType is string && data.fileType.size() <= 120 &&
+        data.fileSize is number && data.fileSize >= 0 &&
+        data.plate is string && data.plate.size() <= 20 &&
+        data.expiryDate is string && data.expiryDate.size() <= 40 &&
+        data.referenceDate is string && data.referenceDate.size() <= 40 &&
+        data.notes is string && data.notes.size() <= 500 &&
+        data.uploadedAt is string && data.uploadedAt.size() <= 40 &&
+        data.fileDataUrl is string && data.fileDataUrl.size() <= 450000 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    // PII & RBAC collections remain closed when login is disabled
+    match /users/{userId} {
+      allow read, write: if false;
+    }
+
+    match /admins/{userId} {
+      allow read, write: if false;
+    }
+
+    match /fleetMeta/{metaId} {
+      allow get: if isValidId(metaId);
+      allow list: if existing().ownerId is string;
+      allow create: if isValidId(metaId) &&
+        isValidFleetMeta(incoming()) &&
+        incoming().ownerId == metaId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(metaId) &&
+        isValidFleetMeta(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['lastUpdatedDisplay', 'initialized', 'updatedAt']);
+      allow delete: if isValidId(metaId) && existing().ownerId is string;
+    }
+
+    match /vehicles/{vehicleId} {
+      allow get: if isValidId(vehicleId);
+      allow list: if existing().id is string;
+      allow create: if isValidId(vehicleId) &&
+        isValidVehicle(incoming()) &&
+        incoming().id == vehicleId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(vehicleId) &&
+        isValidVehicle(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'status2', 'finalStatus', 'lastUpdated', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['checklist', 'lastUpdated', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['photoUrl', 'lastUpdated', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'plate', 'fleetNumber', 'typeCode', 'category', 'sector', 'company',
+            'status', 'manufacturer', 'model', 'manufacturerModel', 'axles',
+            'yearFab', 'yearMod', 'color', 'logoBrand', 'operationYear', 'kmOrHours',
+            'unit', 'bodywork', 'tare', 'pbt', 'ownership', 'hbFrota', 'renavam',
+            'chassi', 'extinguisherSerial', 'tankCapacity', 'capacityPallets',
+            'cargoCapacity', 'fuelType', 'status2', 'fipeValue', 'currentValue',
+            'fipeCode', 'fleetAgeYears', 'replacementTermYears',
+            'replacementTermKmHours', 'expectedReplacementMonthYear', 'purchaseYear',
+            'fleetAgeYearMonths', 'finalStatus', 'expiryDates', 'checklist',
+            'photoUrl', 'periodBucket', 'lastUpdated', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(vehicleId) && existing().id is string;
+    }
+
+    match /vehiclePhotos/{vehicleId} {
+      allow get: if isValidId(vehicleId);
+      allow list: if existing().vehicleId is string;
+      allow create: if isValidId(vehicleId) &&
+        isValidVehiclePhoto(incoming()) &&
+        incoming().vehicleId == vehicleId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/vehicles/$(vehicleId)) &&
+        get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.ownerId == incoming().ownerId;
+      allow update: if isValidId(vehicleId) &&
+        isValidVehiclePhoto(incoming()) &&
+        incoming().vehicleId == existing().vehicleId &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['plate', 'dataUrl', 'updatedAt']);
+      allow delete: if isValidId(vehicleId) && existing().vehicleId is string;
+    }
+
+    match /documents/{docId} {
+      allow get: if isValidId(docId);
+      allow list: if existing().id is string;
+      allow create: if isValidId(docId) &&
+        isValidVehicleDocument(incoming()) &&
+        incoming().id == docId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/vehicles/$(incoming().vehicleId)) &&
+        get(/databases/$(database)/documents/vehicles/$(incoming().vehicleId)).data.ownerId == incoming().ownerId;
+      allow update: if isValidId(docId) &&
+        isValidVehicleDocument(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().vehicleId == existing().vehicleId &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'expiryDate', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'plate', 'model', 'sector', 'type', 'status',
+            'expiryDate', 'protocol', 'responsible', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(docId) && existing().id is string;
+    }
+
+    match /evidences/{vehicleId} {
+      allow get: if isValidId(vehicleId);
+      allow list: if existing().vehicleId is string;
+      allow create: if isValidId(vehicleId) &&
+        isValidVehicleEvidence(incoming()) &&
+        incoming().vehicleId == vehicleId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/vehicles/$(vehicleId)) &&
+        get(/databases/$(database)/documents/vehicles/$(vehicleId)).data.ownerId == incoming().ownerId;
+      allow update: if isValidId(vehicleId) &&
+        isValidVehicleEvidence(incoming()) &&
+        incoming().vehicleId == existing().vehicleId &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly(['crlv', 'crlvFile', 'updatedDate', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['cnt', 'cntFile', 'updatedDate', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['antt', 'anttFile', 'updatedDate', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'plate', 'model', 'sector', 'crlv', 'cnt', 'antt',
+            'crlvFile', 'cntFile', 'anttFile', 'updatedDate', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(vehicleId) && existing().vehicleId is string;
+    }
+
+    match /legalizedDocs/{docId} {
+      allow get: if isValidId(docId);
+      allow list: if existing().id is string;
+      allow create: if isValidId(docId) &&
+        isValidLegalizedDoc(incoming()) &&
+        incoming().id == docId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(docId) &&
+        isValidLegalizedDoc(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'folder', 'subfolder', 'fileName', 'fileType', 'fileSize', 'plate',
+          'expiryDate', 'referenceDate', 'notes', 'uploadedAt',
+          'fileDataUrl', 'updatedAt'
+        ]);
+      allow delete: if isValidId(docId) && existing().id is string;
+    }
+  }
+}
