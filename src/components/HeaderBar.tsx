@@ -25,6 +25,11 @@ const SECTION_HEADERS: Record<NavSection, { context: string; subtitle: string }>
     subtitle:
       'Pastas oficiais da frota: ANTT, Contrato de Locação Veicular, CRLV e Cronotacógrafos',
   },
+  'processo-garantia': {
+    context: 'Frota Pau Brasil – Brejo',
+    subtitle:
+      'Padrão DPO Ambev: Processos e diretrizes para garantir a conformidade documental da frota',
+  },
   'visao-geral': {
     context: 'Frota Pau Brasil – Brejo',
     subtitle: 'Acompanhe em tempo real o desempenho e a documentação da frota',
@@ -88,6 +93,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               <span className="text-[#1256BA]">
                 {activeSection === 'documentos-legalizados'
                   ? '1.1.1 Documentos Legalizados'
+                  : activeSection === 'processo-garantia'
+                  ? '1.1.3 Processo para Garantir Documentação'
                   : '1.1.2 Controle de Documentos'}
               </span>
               <span className="mx-2 text-slate-300 font-normal" aria-hidden="true">
@@ -131,7 +138,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       </div>
 
       {/* Sub-navigation Menu Rail (1.1.2 Controle de Documentos) */}
-      {activeSection !== 'documentos-legalizados' && (
+      {activeSection !== 'documentos-legalizados' && activeSection !== 'processo-garantia' && (
         <div className="pt-1.5 border-t border-slate-200/70">
           <nav
             aria-label="Subseções de 1.1.2 Controle de Documentos"

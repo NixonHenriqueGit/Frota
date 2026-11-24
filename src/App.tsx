@@ -80,6 +80,7 @@ import { DocumentsView } from './components/DocumentsView';
 import { EvidencesView } from './components/EvidencesView';
 import { ChecklistsView } from './components/ChecklistsView';
 import { LegalizedDocumentsView } from './components/LegalizedDocumentsView';
+import { ProcessGuaranteeView } from './components/ProcessGuaranteeView';
 import { VehicleModal } from './components/VehicleModal';
 import { ImportFleetModal } from './components/ImportFleetModal';
 
@@ -1308,6 +1309,10 @@ export default function App() {
                   onUpdateRecord={handleUpdateLegalizedDoc}
                   onDeleteRecord={handleDeleteLegalizedDoc}
                 />
+              )}
+
+              {activeSection === 'processo-garantia' && (
+                <ProcessGuaranteeView />
               )}
 
               {activeSection === 'visao-geral' && (

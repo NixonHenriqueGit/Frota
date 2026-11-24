@@ -7,6 +7,7 @@ import {
   Layers,
   RotateCcw,
   Settings,
+  ShieldCheck,
   X,
 } from 'lucide-react';
 import { NavSection } from '../types/fleet';
@@ -206,23 +207,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => handleSelect('visao-geral')}
-                  aria-current={activeSection !== 'documentos-legalizados' ? 'page' : undefined}
+                  aria-current={activeSection === 'visao-geral' ? 'page' : undefined}
                   className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[0.76rem] leading-snug text-left font-bold border transition-all duration-150 cursor-pointer ${
-                    activeSection !== 'documentos-legalizados'
+                    activeSection === 'visao-geral'
                       ? 'bg-gradient-to-r from-[#2B86FF]/35 to-[#1469F2]/25 border-[#7DD3FC]/55 text-white shadow-[0_4px_12px_rgba(10,36,114,0.35)]'
                       : 'bg-transparent hover:bg-white/10 border-transparent text-blue-100/85 hover:text-white'
                   }`}
                 >
                   <span
                     className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                      activeSection !== 'documentos-legalizados'
+                      activeSection === 'visao-geral'
                         ? 'bg-[#38BDF8] shadow-[0_0_8px_#38BDF8]'
                         : 'bg-blue-300/35 group-hover:bg-blue-200/70'
                     }`}
                   />
                   <FileText
                     className={`w-[15px] h-[15px] shrink-0 ${
-                      activeSection !== 'documentos-legalizados'
+                      activeSection === 'visao-geral'
                         ? 'text-[#93C5FD]'
                         : 'text-blue-200/75 group-hover:text-white'
                     }`}
@@ -230,6 +231,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     fillOpacity={0.22}
                   />
                   <span className="tracking-tight">1.1.2 CONTROLE DE DOCUMENTOS</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSelect('processo-garantia')}
+                  aria-current={activeSection === 'processo-garantia' ? 'page' : undefined}
+                  className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[0.76rem] leading-snug text-left font-bold border transition-all duration-150 cursor-pointer ${
+                    activeSection === 'processo-garantia'
+                      ? 'bg-gradient-to-r from-[#2B86FF]/35 to-[#1469F2]/25 border-[#7DD3FC]/55 text-white shadow-[0_4px_12px_rgba(10,36,114,0.35)]'
+                      : 'bg-transparent hover:bg-white/10 border-transparent text-blue-100/85 hover:text-white'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
+                      activeSection === 'processo-garantia'
+                        ? 'bg-[#38BDF8] shadow-[0_0_8px_#38BDF8]'
+                        : 'bg-blue-300/35 group-hover:bg-blue-200/70'
+                    }`}
+                  />
+                  <ShieldCheck
+                    className={`w-[15px] h-[15px] shrink-0 ${
+                      activeSection === 'processo-garantia'
+                        ? 'text-emerald-300'
+                        : 'text-blue-200/75 group-hover:text-emerald-200'
+                    }`}
+                  />
+                  <span className="tracking-tight">1.1.3 PROCESSO PARA GARANTIR DOCUMENTAÇÃO</span>
                 </button>
               </div>
             )}

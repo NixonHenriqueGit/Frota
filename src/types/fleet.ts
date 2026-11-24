@@ -175,6 +175,7 @@ export interface LegalizedDocumentRecord {
 
 export type NavSection =
   | 'documentos-legalizados'
+  | 'processo-garantia'
   | 'visao-geral'
   | 'cadastro'
   | 'documentos'

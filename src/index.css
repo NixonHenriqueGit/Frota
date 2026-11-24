@@ -21,12 +21,20 @@
 
   body {
     font-family: var(--font-sans);
-    background-color: #eef3f9;
-    color: #0f172a;
+    background-color: #e2ecf7;
+    color: #0b1f3b;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-weight: 500;
   }
 
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-weight: 700;
+    color: #ffffff;
   }
 }
 
