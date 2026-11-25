@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { LegalizedDocumentRecord, Vehicle } from '../types/fleet';
 import { PdfCanvasPreview } from './PdfCanvasPreview';
+import { MAX_LEGALIZED_FILE_BYTES } from '../services/fleetFirestore';
 
 const SANITARY_FOLDER = 'LAUDO DE VIGILÂNCIA SANITÁRIA' as const;
 
@@ -80,6 +81,7 @@ export const SanitaryLaudoView: React.FC<SanitaryLaudoViewProps> = ({
   const [search, setSearch] = useState('');
   const [plateFilter, setPlateFilter] = useState<string>('Todas');
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadNotice, setUploadNotice] = useState<string | null>(null);
 
   const quickFileInputRef = useRef<HTMLInputElement | null>(null);
   const modalFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -160,9 +162,14 @@ export const SanitaryLaudoView: React.FC<SanitaryLaudoViewProps> = ({
 
     const nowDate = new Date().toLocaleDateString('pt-BR');
     const created: LegalizedDocumentRecord[] = [];
+    const oversizedNames: string[] = [];
 
     for (let idx = 0; idx < files.length; idx++) {
       const file = files[idx];
+      if (file.size > MAX_LEGALIZED_FILE_BYTES) {
+        oversizedNames.push(file.name);
+        continue;
+      }
       const dataUrl = await readFileAsDataUrl(file);
       const detectedPlate = forcedPlate || detectPlateFromFilename(file.name, vehicles);
       created.push({
@@ -181,7 +188,17 @@ export const SanitaryLaudoView: React.FC<SanitaryLaudoViewProps> = ({
       });
     }
 
-    onAddRecords(created);
+    if (oversizedNames.length > 0) {
+      setUploadNotice(
+        `Arquivo(s) acima do limite de 15 MB não enviado(s): ${oversizedNames.join(', ')}.`
+      );
+    } else {
+      setUploadNotice(null);
+    }
+
+    if (created.length > 0) {
+      onAddRecords(created);
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -200,8 +217,13 @@ export const SanitaryLaudoView: React.FC<SanitaryLaudoViewProps> = ({
     try {
       const nowDate = new Date().toLocaleDateString('pt-BR');
       const created: LegalizedDocumentRecord[] = [];
+      const oversizedNames: string[] = [];
       for (let idx = 0; idx < draftFiles.length; idx++) {
         const file = draftFiles[idx];
+        if (file.size > MAX_LEGALIZED_FILE_BYTES) {
+          oversizedNames.push(file.name);
+          continue;
+        }
         const dataUrl = await readFileAsDataUrl(file);
         created.push({
           id: `laudo-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
@@ -218,7 +240,16 @@ export const SanitaryLaudoView: React.FC<SanitaryLaudoViewProps> = ({
           fileDataUrl: dataUrl,
         });
       }
-      onAddRecords(created);
+      if (oversizedNames.length > 0) {
+        setUploadNotice(
+          `Arquivo(s) acima do limite de 15 MB não enviado(s): ${oversizedNames.join(', ')}.`
+        );
+      } else {
+        setUploadNotice(null);
+      }
+      if (created.length > 0) {
+        onAddRecords(created);
+      }
       setActiveTab('files');
       setAddModalOpen(false);
     } finally {
@@ -331,6 +362,15 @@ export const SanitaryLaudoView: React.FC<SanitaryLaudoViewProps> = ({
         onChange={async (e) => {
           const file = e.target.files?.[0];
           if (file && rowAttachTarget) {
+            if (file.size > MAX_LEGALIZED_FILE_BYTES) {
+              setUploadNotice(
+                `O arquivo "${file.name}" excede o limite de 15 MB suportado pelo banco de dados.`
+              );
+              e.target.value = '';
+              setRowAttachTarget(null);
+              return;
+            }
+            setUploadNotice(null);
             const dataUrl = await readFileAsDataUrl(file);
             const nowDate = new Date().toLocaleDateString('pt-BR');
             onUpdateRecord(rowAttachTarget.id, {
@@ -493,6 +533,20 @@ export const SanitaryLaudoView: React.FC<SanitaryLaudoViewProps> = ({
         {/* Workspace Content */}
         {activeTab === 'files' ? (
           <div className="flex-1 flex flex-col">
+            {uploadNotice && (
+              <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2 text-xs text-amber-800 flex items-center justify-between gap-2">
+                <span>{uploadNotice}</span>
+                <button
+                  type="button"
+                  onClick={() => setUploadNotice(null)}
+                  className="text-amber-700 hover:text-amber-900 cursor-pointer"
+                  aria-label="Fechar aviso"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Drag & Drop Upload Strip */}
             <div
               onDragOver={(e) => {

@@ -6,7 +6,6 @@ import {
   FileText,
   Home,
   Menu,
-  Plus,
   Truck,
 } from 'lucide-react';
 import { NavSection } from '../types/fleet';
@@ -16,7 +15,6 @@ interface HeaderBarProps {
   lastUpdated: string;
   onSelectSection: (section: NavSection) => void;
   onToggleMenu: () => void;
-  onAddVehicle: () => void;
 }
 
 const SECTION_HEADERS: Record<NavSection, { context: string; subtitle: string }> = {
@@ -82,7 +80,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   activeSection,
   onSelectSection,
   onToggleMenu,
-  onAddVehicle,
 }) => {
   const { context, subtitle } = SECTION_HEADERS[activeSection];
   const isInsideSubmodule = activeSection !== 'bloco-1';
@@ -137,17 +134,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               {subtitle}
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={onAddVehicle}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-xl bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#1565D8] hover:brightness-110 active:scale-[0.99] text-white text-xs sm:text-[0.82rem] font-semibold shadow-[0_4px_12px_rgba(11,60,125,0.24)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1565D8]/60 transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Novo Veículo</span>
-          </button>
         </div>
       </div>
 

@@ -129,7 +129,13 @@ const VALID_COMPLIANCE_OPERATIONS = new Set<ComplianceOperation>([
 
 const VALID_COMPLIANCE_STATUS = new Set<ComplianceDocStatus>(['OK', 'NOK', 'N/A']);
 
-export const MAX_LEGALIZED_INLINE_BYTES = 850000;
+const FIRESTORE_LEGALIZED_DATAURL_MAX_BYTES = 850000;
+export const MAX_LEGALIZED_INLINE_BYTES = 800000;
+export const LEGALIZED_CHUNK_SIZE = 700000;
+export const MAX_LEGALIZED_FILE_BYTES = 15 * 1024 * 1024;
+const MAX_LEGALIZED_FILE_DATAURL_BYTES = 21_000_000;
+const LEGALIZED_CHUNK_MIME = 'application/x-pb-chunk';
+const CHUNKED_MARKER_PREFIX = '__CHUNKED__:';
 
 const utf8Encoder = new TextEncoder();
 
@@ -320,6 +326,7 @@ export interface EvidenceFirestoreDoc extends VehicleEvidenceRecord {
 export interface LegalizedDocFirestoreDoc extends LegalizedDocumentRecord {
   ownerId: string;
   createdAt?: Timestamp;
+  rawFileDataUrl?: string;
 }
 
 export interface ComplianceCheckFirestoreDoc extends ComplianceCheckRecord {
@@ -340,7 +347,9 @@ export function sanitizeLegalizedDocForFirestore(
       : '';
   const rawDataUrl = typeof item.fileDataUrl === 'string' ? item.fileDataUrl : '';
   const inlineDataUrl =
-    utf8Encoder.encode(rawDataUrl).length <= MAX_LEGALIZED_INLINE_BYTES ? rawDataUrl : '';
+    utf8Encoder.encode(rawDataUrl).length <= FIRESTORE_LEGALIZED_DATAURL_MAX_BYTES
+      ? rawDataUrl
+      : '';
 
   return {
     id: safeId,
@@ -502,6 +511,27 @@ export function mapDocToVehicleEvidence(data: Record<string, unknown>): Evidence
   };
 }
 
+function generateChunkNonce(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function buildChunkDocId(safeParentId: string, nonce: string, idx: number): string {
+  return `${safeParentId.slice(0, 90)}__c_${nonce}_${idx}`;
+}
+
+function parseChunkedMarker(val?: string): { nonce: string; totalChunks: number } | null {
+  if (!val || !val.startsWith(CHUNKED_MARKER_PREFIX)) return null;
+  const match = /^__CHUNKED__:([a-z0-9]+):(\d+)$/.exec(val);
+  if (!match) return null;
+  const totalChunks = Number(match[2]);
+  if (!Number.isInteger(totalChunks) || totalChunks <= 0) return null;
+  return { nonce: match[1], totalChunks };
+}
+
+export function isLegalizedChunkDoc(data: Record<string, unknown>): boolean {
+  return data.fileType === LEGALIZED_CHUNK_MIME;
+}
+
 export function mapDocToLegalizedDoc(data: Record<string, unknown>): LegalizedDocFirestoreDoc {
   const folder = VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
     ? (data.folder as LegalizedFolderName)
@@ -509,7 +539,7 @@ export function mapDocToLegalizedDoc(data: Record<string, unknown>): LegalizedDo
   const rawSub = data.subfolder as CrlvSubfolderName | undefined;
   const subfolder =
     folder === 'CRLV' && rawSub && VALID_CRLV_SUBFOLDERS.has(rawSub) ? rawSub : '';
-  const fileDataUrl = clampStr(data.fileDataUrl, MAX_LEGALIZED_INLINE_BYTES);
+  const fileDataUrl = clampStr(data.fileDataUrl, FIRESTORE_LEGALIZED_DATAURL_MAX_BYTES);
   return {
     id: String(data.id ?? ''),
     ownerId: String(data.ownerId ?? ''),
@@ -524,8 +554,75 @@ export function mapDocToLegalizedDoc(data: Record<string, unknown>): LegalizedDo
     notes: clampStr(data.notes, 500),
     uploadedAt: clampStr(data.uploadedAt, 40),
     fileDataUrl: fileDataUrl || undefined,
+    rawFileDataUrl: fileDataUrl,
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
   };
+}
+
+export function reassembleLegalizedDocs(
+  rawDocs: Record<string, unknown>[]
+): LegalizedDocFirestoreDoc[] {
+  const chunkMap = new Map<string, Map<number, string>>();
+  const parentRawDocs: Record<string, unknown>[] = [];
+
+  for (const data of rawDocs) {
+    if (isLegalizedChunkDoc(data)) {
+      const fileName = typeof data.fileName === 'string' ? data.fileName : '';
+      const match = /^__CHUNK__:([-a-zA-Z0-9_]+):([a-z0-9]+):(\d+):(\d+)$/.exec(fileName);
+      if (match) {
+        const key = `${match[1]}:${match[2]}`;
+        const idx = Number(match[3]);
+        const slice = typeof data.fileDataUrl === 'string' ? data.fileDataUrl : '';
+        let parts = chunkMap.get(key);
+        if (!parts) {
+          parts = new Map<number, string>();
+          chunkMap.set(key, parts);
+        }
+        parts.set(idx, slice);
+      }
+    } else {
+      parentRawDocs.push(data);
+    }
+  }
+
+  return parentRawDocs.map((data) => {
+    const mapped = mapDocToLegalizedDoc(data);
+    const rawMarker = typeof data.fileDataUrl === 'string' ? data.fileDataUrl : '';
+    const parsed = parseChunkedMarker(rawMarker);
+    if (!parsed) {
+      return {
+        ...mapped,
+        rawFileDataUrl: rawMarker,
+      };
+    }
+
+    const parts = chunkMap.get(`${mapped.id}:${parsed.nonce}`);
+    if (parts && parts.size === parsed.totalChunks) {
+      const joined: string[] = [];
+      let complete = true;
+      for (let i = 0; i < parsed.totalChunks; i++) {
+        const piece = parts.get(i);
+        if (piece === undefined) {
+          complete = false;
+          break;
+        }
+        joined.push(piece);
+      }
+      if (complete) {
+        return {
+          ...mapped,
+          fileDataUrl: joined.join(''),
+          rawFileDataUrl: rawMarker,
+        };
+      }
+    }
+
+    return {
+      ...mapped,
+      fileDataUrl: undefined,
+      rawFileDataUrl: rawMarker,
+    };
+  });
 }
 
 export function mapDocToComplianceCheck(
@@ -1200,6 +1297,68 @@ export function buildCollectionQuery(collectionName: string) {
   );
 }
 
+async function writeLegalizedChunks(
+  safeParentId: string,
+  rawDataUrl: string,
+  folder: LegalizedFolderName,
+  uploadedAt: string,
+  ownerId: string
+): Promise<string> {
+  const safeFolder = VALID_LEGALIZED_FOLDERS.has(folder) ? folder : 'ANTT';
+  const safeUploadedAt = clampStr(uploadedAt, 40);
+  const nonce = generateChunkNonce();
+
+  const slices: string[] = [];
+  for (let offset = 0; offset < rawDataUrl.length; offset += LEGALIZED_CHUNK_SIZE) {
+    slices.push(rawDataUrl.slice(offset, offset + LEGALIZED_CHUNK_SIZE));
+  }
+  const totalChunks = slices.length;
+
+  const chunkGroups: BatchAction[][] = slices.map((slice, idx) => {
+    const chunkId = buildChunkDocId(safeParentId, nonce, idx);
+    const chunkPayload = {
+      id: chunkId,
+      ownerId,
+      folder: safeFolder,
+      subfolder: '',
+      fileName: clampStr(`__CHUNK__:${safeParentId}:${nonce}:${idx}:${totalChunks}`, 200),
+      fileType: LEGALIZED_CHUNK_MIME,
+      fileSize: slice.length,
+      plate: '',
+      expiryDate: '',
+      referenceDate: '',
+      notes: '',
+      uploadedAt: safeUploadedAt,
+      fileDataUrl: slice,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    return [(batch) => batch.set(doc(db, 'legalizedDocs', chunkId), chunkPayload)];
+  });
+
+  await commitGroupedBatches(chunkGroups, { maxOpsPerBatch: 1, concurrency: 4 });
+  return `${CHUNKED_MARKER_PREFIX}${nonce}:${totalChunks}`;
+}
+
+async function deleteLegalizedChunksQuietly(
+  safeParentId: string,
+  rawMarker?: string
+): Promise<void> {
+  const parsed = parseChunkedMarker(rawMarker);
+  if (!parsed) return;
+  const chunkIds: string[] = [];
+  for (let idx = 0; idx < parsed.totalChunks; idx++) {
+    chunkIds.push(buildChunkDocId(safeParentId, parsed.nonce, idx));
+  }
+  const concurrency = 4;
+  for (let i = 0; i < chunkIds.length; i += concurrency) {
+    const slice = chunkIds.slice(i, i + concurrency);
+    await Promise.allSettled(
+      slice.map((chunkId) => deleteDoc(doc(db, 'legalizedDocs', chunkId)))
+    );
+  }
+}
+
 export async function addLegalizedDocInFirestore(
   item: LegalizedDocumentRecord,
   ownerId: string,
@@ -1208,9 +1367,28 @@ export async function addLegalizedDocInFirestore(
   const safeId = sanitizeFirestoreId(item.id);
   const path = `legalizedDocs/${safeId}`;
   try {
+    const rawDataUrl = typeof item.fileDataUrl === 'string' ? item.fileDataUrl : '';
+    const byteLen = utf8Encoder.encode(rawDataUrl).length;
+    let storedFileDataUrl = '';
+
+    if (byteLen > 0 && byteLen <= MAX_LEGALIZED_INLINE_BYTES) {
+      storedFileDataUrl = rawDataUrl;
+    } else if (byteLen > MAX_LEGALIZED_INLINE_BYTES && byteLen <= MAX_LEGALIZED_FILE_DATAURL_BYTES) {
+      storedFileDataUrl = await writeLegalizedChunks(
+        safeId,
+        rawDataUrl,
+        item.folder,
+        item.uploadedAt,
+        ownerId
+      );
+    }
+
     await setDoc(
       doc(db, 'legalizedDocs', safeId),
-      sanitizeLegalizedDocForFirestore({ ...item, id: safeId }, ownerId)
+      sanitizeLegalizedDocForFirestore(
+        { ...item, id: safeId, fileDataUrl: storedFileDataUrl },
+        ownerId
+      )
     );
     await upsertFleetMeta(ownerId, lastUpdatedDisplay, true);
   } catch (error) {
@@ -1228,14 +1406,47 @@ export async function updateLegalizedDocInFirestore(
   const path = `legalizedDocs/${safeId}`;
   try {
     const targetOwnerId = existingItem.ownerId || ownerId;
+    const oldRawMarker = existingItem.rawFileDataUrl ?? existingItem.fileDataUrl ?? '';
+    const isReplacingFile = patch.fileDataUrl !== undefined;
+
+    let storedFileDataUrl = oldRawMarker;
+    let shouldDeleteOldChunks = false;
+
+    if (isReplacingFile) {
+      const nextRaw = typeof patch.fileDataUrl === 'string' ? patch.fileDataUrl : '';
+      const byteLen = utf8Encoder.encode(nextRaw).length;
+      if (byteLen === 0) {
+        storedFileDataUrl = '';
+        shouldDeleteOldChunks = true;
+      } else if (byteLen <= MAX_LEGALIZED_INLINE_BYTES) {
+        storedFileDataUrl = nextRaw;
+        shouldDeleteOldChunks = true;
+      } else if (byteLen <= MAX_LEGALIZED_FILE_DATAURL_BYTES) {
+        storedFileDataUrl = await writeLegalizedChunks(
+          safeId,
+          nextRaw,
+          patch.folder ?? existingItem.folder,
+          patch.uploadedAt ?? existingItem.uploadedAt,
+          targetOwnerId
+        );
+        shouldDeleteOldChunks = true;
+      }
+    }
+
     const merged: LegalizedDocumentRecord = {
       ...existingItem,
       ...patch,
       id: safeId,
+      fileDataUrl: storedFileDataUrl,
     };
     const full = sanitizeLegalizedDocForFirestore(merged, targetOwnerId, existingItem.createdAt);
     const { id: _id, ownerId: _ownerId, createdAt: _createdAt, ...updatable } = full;
     await updateDoc(doc(db, 'legalizedDocs', safeId), updatable);
+
+    if (shouldDeleteOldChunks) {
+      await deleteLegalizedChunksQuietly(safeId, oldRawMarker);
+    }
+
     await upsertFleetMeta(ownerId, lastUpdatedDisplay, true);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
@@ -1245,12 +1456,14 @@ export async function updateLegalizedDocInFirestore(
 export async function deleteLegalizedDocInFirestore(
   docId: string,
   ownerId: string,
-  lastUpdatedDisplay: string
+  lastUpdatedDisplay: string,
+  rawFileDataUrl?: string
 ): Promise<void> {
   const safeId = sanitizeFirestoreId(docId);
   const path = `legalizedDocs/${safeId}`;
   try {
     await deleteDoc(doc(db, 'legalizedDocs', safeId));
+    await deleteLegalizedChunksQuietly(safeId, rawFileDataUrl);
     await upsertFleetMeta(ownerId, lastUpdatedDisplay, true);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);

@@ -39,10 +39,10 @@ import {
   importFleetToFirestore,
   loadDefaultFleetToFirestore,
   mapDocToComplianceCheck,
-  mapDocToLegalizedDoc,
   mapDocToVehicle,
   mapDocToVehicleDocument,
   mapDocToVehicleEvidence,
+  reassembleLegalizedDocs,
   saveVehicleBundle,
   saveVehiclePhotoInFirestore,
   toggleEvidenceFieldInFirestore,
@@ -236,8 +236,8 @@ export default function App() {
       buildCollectionQuery('legalizedDocs'),
       (snapshot) => {
         if (!active) return;
-        const list = snapshot.docs.map((d) =>
-          mapDocToLegalizedDoc(d.data() as Record<string, unknown>)
+        const list = reassembleLegalizedDocs(
+          snapshot.docs.map((d) => d.data() as Record<string, unknown>)
         );
         setLegalizedDocs(list);
         legalizedReady = true;
@@ -546,8 +546,14 @@ export default function App() {
   const handleDeleteLegalizedDoc = (id: string) => {
     const ts = nowTimestamp();
     setLastUpdated(ts);
+    const existing = legalizedDocs.find((d) => d.id === id);
 
-    void deleteLegalizedDocInFirestore(id, SHARED_WORKSPACE_ID, ts).catch(captureAsyncError);
+    void deleteLegalizedDocInFirestore(
+      id,
+      SHARED_WORKSPACE_ID,
+      ts,
+      existing?.rawFileDataUrl
+    ).catch(captureAsyncError);
   };
 
   const handleAddComplianceChecks = (items: ComplianceCheckRecord[]) => {
@@ -596,10 +602,6 @@ export default function App() {
           lastUpdated={lastUpdated}
           onSelectSection={setActiveSection}
           onToggleMenu={() => setMobileMenuOpen(true)}
-          onAddVehicle={() => {
-            setEditingVehicle(null);
-            setModalOpen(true);
-          }}
         />
 
         <main className="flex-1 flex flex-col px-4 py-2.5 sm:px-5 sm:py-2.5 w-full">
