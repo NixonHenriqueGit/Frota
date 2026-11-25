@@ -85,7 +85,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     activeSection === 'checklists' ||
     activeSection === 'processo-garantia' ||
     activeSection === 'laudo-vigilancia' ||
-    activeSection === 'check-conformidade';
+    activeSection === 'check-conformidade' ||
+    activeSection === 'padroes-equipamentos';
 
   const sidebarContent = (
     <aside className="relative flex h-full w-[14.5rem] flex-col justify-between overflow-hidden bg-gradient-to-b from-[#001A6F] via-[#001A6E] to-[#00175E] text-white select-none">

@@ -42,6 +42,11 @@ const SECTION_HEADERS: Record<NavSection, { context: string; subtitle: string }>
     subtitle:
       'Acompanhamento mensal de documentos obrigatórios por placa (CRLV, Cronotacógrafo, ANTT e Contrato de Locação)',
   },
+  'padroes-equipamentos': {
+    context: 'Frota Pau Brasil – Brejo',
+    subtitle:
+      'Padrões de equipamentos de manuseio, transporte e documentos técnicos oficiais da frota',
+  },
   'visao-geral': {
     context: 'Frota Pau Brasil – Brejo',
     subtitle: 'Acompanhe em tempo real o desempenho e a documentação da frota',
@@ -123,7 +128,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                         ? '1.1.4 Laudo de Vigilância Sanitária'
                         : activeSection === 'check-conformidade'
                           ? '1.1.5 Check Documentação Fora de Conformidade'
-                          : '1.1.2 Controle de Documentos'}
+                          : activeSection === 'padroes-equipamentos'
+                            ? '1.2.1 Padrões de Equipamentos'
+                            : '1.1.2 Controle de Documentos'}
               </span>
               <span className="mx-2 text-slate-300 font-normal" aria-hidden="true">
                 |
@@ -142,7 +149,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         activeSection !== 'documentos-legalizados' &&
         activeSection !== 'processo-garantia' &&
         activeSection !== 'laudo-vigilancia' &&
-        activeSection !== 'check-conformidade' && (
+        activeSection !== 'check-conformidade' &&
+        activeSection !== 'padroes-equipamentos' && (
         <div className="pt-1.5 border-t border-slate-200/70">
           <nav
             aria-label="Subseções de 1.1.2 Controle de Documentos"

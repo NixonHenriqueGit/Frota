@@ -99,7 +99,14 @@ const VALID_LEGALIZED_FOLDERS = new Set<LegalizedFolderName>([
   'CRLV',
   'CRONOTACÓGRAFOS',
   'LAUDO DE VIGILÂNCIA SANITÁRIA',
+  'PADRÕES DE EQUIPAMENTOS',
 ]);
+const EQUIPMENT_STANDARD_ID_PREFIX = 'equip-';
+
+function toFirestoreLegalizedFolder(folder: LegalizedFolderName): string {
+  if (folder === 'PADRÕES DE EQUIPAMENTOS') return 'ANTT';
+  return VALID_LEGALIZED_FOLDERS.has(folder) ? folder : 'ANTT';
+}
 const VALID_CRLV_SUBFOLDERS = new Set<CrlvSubfolderName>([
   'ENTREGA',
   'FROTA LEVE',
@@ -340,9 +347,11 @@ export function sanitizeLegalizedDocForFirestore(
   createdAt?: unknown
 ): Record<string, unknown> {
   const safeId = sanitizeFirestoreId(item.id);
-  const folder = VALID_LEGALIZED_FOLDERS.has(item.folder) ? item.folder : 'ANTT';
+  const wireFolder = toFirestoreLegalizedFolder(item.folder);
   const subfolder =
-    folder === 'CRLV' && item.subfolder && VALID_CRLV_SUBFOLDERS.has(item.subfolder as CrlvSubfolderName)
+    wireFolder === 'CRLV' &&
+    item.subfolder &&
+    VALID_CRLV_SUBFOLDERS.has(item.subfolder as CrlvSubfolderName)
       ? item.subfolder
       : '';
   const rawDataUrl = typeof item.fileDataUrl === 'string' ? item.fileDataUrl : '';
@@ -354,7 +363,7 @@ export function sanitizeLegalizedDocForFirestore(
   return {
     id: safeId,
     ownerId,
-    folder,
+    folder: wireFolder,
     subfolder,
     fileName: clampStr(item.fileName, 200, 'documento.pdf') || 'documento.pdf',
     fileType: clampStr(item.fileType, 120, 'application/octet-stream'),
@@ -533,15 +542,18 @@ export function isLegalizedChunkDoc(data: Record<string, unknown>): boolean {
 }
 
 export function mapDocToLegalizedDoc(data: Record<string, unknown>): LegalizedDocFirestoreDoc {
-  const folder = VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
-    ? (data.folder as LegalizedFolderName)
-    : 'ANTT';
+  const id = String(data.id ?? '');
+  const folder: LegalizedFolderName = id.startsWith(EQUIPMENT_STANDARD_ID_PREFIX)
+    ? 'PADRÕES DE EQUIPAMENTOS'
+    : VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
+      ? (data.folder as LegalizedFolderName)
+      : 'ANTT';
   const rawSub = data.subfolder as CrlvSubfolderName | undefined;
   const subfolder =
     folder === 'CRLV' && rawSub && VALID_CRLV_SUBFOLDERS.has(rawSub) ? rawSub : '';
   const fileDataUrl = clampStr(data.fileDataUrl, FIRESTORE_LEGALIZED_DATAURL_MAX_BYTES);
   return {
-    id: String(data.id ?? ''),
+    id,
     ownerId: String(data.ownerId ?? ''),
     folder,
     subfolder,
@@ -1304,7 +1316,7 @@ async function writeLegalizedChunks(
   uploadedAt: string,
   ownerId: string
 ): Promise<string> {
-  const safeFolder = VALID_LEGALIZED_FOLDERS.has(folder) ? folder : 'ANTT';
+  const safeFolder = toFirestoreLegalizedFolder(folder);
   const safeUploadedAt = clampStr(uploadedAt, 40);
   const nonce = generateChunkNonce();
 
@@ -1364,7 +1376,12 @@ export async function addLegalizedDocInFirestore(
   ownerId: string,
   lastUpdatedDisplay: string
 ): Promise<void> {
-  const safeId = sanitizeFirestoreId(item.id);
+  const rawSafeId = sanitizeFirestoreId(item.id);
+  const safeId =
+    item.folder === 'PADRÕES DE EQUIPAMENTOS' &&
+    !rawSafeId.startsWith(EQUIPMENT_STANDARD_ID_PREFIX)
+      ? `${EQUIPMENT_STANDARD_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+      : rawSafeId;
   const path = `legalizedDocs/${safeId}`;
   try {
     const rawDataUrl = typeof item.fileDataUrl === 'string' ? item.fileDataUrl : '';

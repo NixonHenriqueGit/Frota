@@ -204,6 +204,7 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
       CRLV: 0,
       CRONOTACÓGRAFOS: 0,
       'LAUDO DE VIGILÂNCIA SANITÁRIA': 0,
+      'PADRÕES DE EQUIPAMENTOS': 0,
     };
     for (const r of records) {
       if (counts[r.folder] !== undefined) {

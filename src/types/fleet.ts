@@ -155,7 +155,8 @@ export type LegalizedFolderName =
   | 'CONTRATO DE LOCAÇÃO VEICULAR'
   | 'CRLV'
   | 'CRONOTACÓGRAFOS'
-  | 'LAUDO DE VIGILÂNCIA SANITÁRIA';
+  | 'LAUDO DE VIGILÂNCIA SANITÁRIA'
+  | 'PADRÕES DE EQUIPAMENTOS';
 
 export type CrlvSubfolderName = 'ENTREGA' | 'FROTA LEVE' | 'PUXADA';
 
@@ -212,6 +213,7 @@ export type NavSection =
   | 'processo-garantia'
   | 'laudo-vigilancia'
   | 'check-conformidade'
+  | 'padroes-equipamentos'
   | 'visao-geral'
   | 'cadastro'
   | 'documentos'

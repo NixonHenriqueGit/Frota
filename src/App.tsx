@@ -65,6 +65,7 @@ import { ProcessGuaranteeView } from './components/ProcessGuaranteeView';
 import { SanitaryLaudoView } from './components/SanitaryLaudoView';
 import { Bloco1HubView } from './components/Bloco1HubView';
 import { ComplianceCheckView } from './components/ComplianceCheckView';
+import { EquipmentStandardsView } from './components/EquipmentStandardsView';
 import { VehicleModal } from './components/VehicleModal';
 import { ImportFleetModal } from './components/ImportFleetModal';
 
@@ -91,6 +92,7 @@ export default function App() {
   const [firestoreLoaded, setFirestoreLoaded] = useState(false);
 
   const [activeSection, setActiveSection] = useState<NavSection>('bloco-1');
+  const [bloco1Group, setBloco1Group] = useState<'1.1' | '1.2' | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
 
@@ -291,12 +293,22 @@ export default function App() {
   }, [captureAsyncError]);
 
   const legalized111Docs = useMemo(
-    () => legalizedDocs.filter((d) => d.folder !== 'LAUDO DE VIGILÂNCIA SANITÁRIA'),
+    () =>
+      legalizedDocs.filter(
+        (d) =>
+          d.folder !== 'LAUDO DE VIGILÂNCIA SANITÁRIA' &&
+          d.folder !== 'PADRÕES DE EQUIPAMENTOS'
+      ),
     [legalizedDocs]
   );
 
   const sanitaryLaudoDocs = useMemo(
     () => legalizedDocs.filter((d) => d.folder === 'LAUDO DE VIGILÂNCIA SANITÁRIA'),
+    [legalizedDocs]
+  );
+
+  const equipmentStandardDocs = useMemo(
+    () => legalizedDocs.filter((d) => d.folder === 'PADRÕES DE EQUIPAMENTOS'),
     [legalizedDocs]
   );
 
@@ -589,7 +601,10 @@ export default function App() {
     <div className="min-h-screen flex bg-[#EEF3F9] text-slate-900">
       <Sidebar
         activeSection={activeSection}
-        onSelectSection={setActiveSection}
+        onSelectSection={(sec) => {
+          if (sec === 'bloco-1') setBloco1Group(null);
+          setActiveSection(sec);
+        }}
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
         onOpenImportModal={() => setImportModalOpen(true)}
@@ -621,6 +636,9 @@ export default function App() {
                   vehiclesCount={vehicles.length}
                   sanitaryCount={sanitaryLaudoDocs.length}
                   complianceCount={complianceChecks.length}
+                  equipmentCount={equipmentStandardDocs.length}
+                  activeGroup={bloco1Group}
+                  onSelectGroup={setBloco1Group}
                 />
               )}
 
@@ -655,6 +673,15 @@ export default function App() {
                   onAddRecords={handleAddComplianceChecks}
                   onUpdateRecord={handleUpdateComplianceCheck}
                   onDeleteRecord={handleDeleteComplianceCheck}
+                />
+              )}
+
+              {activeSection === 'padroes-equipamentos' && (
+                <EquipmentStandardsView
+                  records={equipmentStandardDocs}
+                  onAddRecords={handleAddLegalizedDocs}
+                  onUpdateRecord={handleUpdateLegalizedDoc}
+                  onDeleteRecord={handleDeleteLegalizedDoc}
                 />
               )}
 
