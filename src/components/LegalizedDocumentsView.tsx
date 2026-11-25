@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
-  ChevronRight,
   Download,
   Edit3,
   Eye,
@@ -22,8 +21,9 @@ import {
   LegalizedFolderName,
   Vehicle,
 } from '../types/fleet';
-import { PdfCanvasPreview } from './PdfCanvasPreview';
+import { DocumentPreviewContent } from './DocumentPreviewContent';
 import { MAX_LEGALIZED_FILE_BYTES } from '../services/fleetFirestore';
+import { PLATFORM_CARD_GRID_CLASS, PlatformCard } from './PlatformCard';
 
 export const CRLV_SUBFOLDERS: {
   id: CrlvSubfolderName;
@@ -205,6 +205,9 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
       CRONOTACÓGRAFOS: 0,
       'LAUDO DE VIGILÂNCIA SANITÁRIA': 0,
       'PADRÕES DE EQUIPAMENTOS': 0,
+      'PADRÕES VISUAIS': 0,
+      'CHECK DE SEGURANÇA': 0,
+      'BLITZ DE ENTREGA': 0,
     };
     for (const r of records) {
       if (counts[r.folder] !== undefined) {
@@ -584,70 +587,22 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
 
       {/* 4 Official Document Category Cards */}
       <section aria-label="Categorias de Documentos Legalizados">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
+        <div className={PLATFORM_CARD_GRID_CLASS}>
           {LEGALIZED_FOLDERS.map((folder) => {
             const isSelected = selectedFolder === folder.id;
             const fileCount = folderCounts[folder.id];
             return (
-              <button
+              <PlatformCard
                 key={folder.id}
-                type="button"
+                kicker={folder.kicker}
+                countLabel={`${String(fileCount).padStart(2, '0')} arq.`}
+                title={folder.title}
+                subtitle={folder.subtitle}
+                statusLabel={isSelected ? 'Pasta aberta' : 'Pasta oficial'}
+                actionLabel={isSelected ? 'Aberta' : 'Abrir'}
+                selected={isSelected}
                 onClick={() => setSelectedFolder(folder.id)}
-                className={`group relative flex flex-col justify-between rounded-xl border px-3.5 py-2.5 text-left transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1565D8] ${
-                  isSelected
-                    ? 'bg-gradient-to-br from-[#072B5E] via-[#0B3C7D] to-[#1565D8] border-[#0B3C7D] text-white shadow-[0_6px_16px_rgba(11,60,125,0.20)]'
-                    : 'bg-white border-slate-200/90 text-[#06295A] hover:border-[#60A5FA] shadow-[0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_4px_12px_rgba(11,60,125,0.08)]'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={`text-[0.64rem] font-semibold uppercase tracking-wider truncate ${
-                      isSelected ? 'text-blue-200/90' : 'text-slate-400'
-                    }`}
-                  >
-                    {folder.kicker}
-                  </span>
-                  <span
-                    className={`font-mono-tabular text-[0.72rem] font-bold whitespace-nowrap shrink-0 ${
-                      isSelected ? 'text-blue-100' : 'text-slate-600'
-                    }`}
-                  >
-                    {fileCount === 0
-                      ? '00 arq.'
-                      : `${String(fileCount).padStart(2, '0')} arq.`}
-                  </span>
-                </div>
-
-                <div className="flex items-baseline justify-between gap-2 mt-1">
-                  <h2
-                    className={`font-display text-[0.84rem] font-bold leading-snug tracking-tight truncate ${
-                      isSelected ? 'text-white' : 'text-[#06295A]'
-                    }`}
-                  >
-                    {folder.title}
-                  </h2>
-                  <span
-                    className={`inline-flex items-center gap-0.5 text-[0.69rem] font-semibold whitespace-nowrap shrink-0 ${
-                      isSelected
-                        ? 'text-blue-100'
-                        : 'text-[#1565D8] group-hover:text-[#0B3C7D]'
-                    }`}
-                  >
-                    <span>{isSelected ? 'Ativa' : 'Abrir'}</span>
-                    {!isSelected && (
-                      <ChevronRight className="w-3 h-3 transition-transform duration-150 group-hover:translate-x-0.5" />
-                    )}
-                  </span>
-                </div>
-
-                <p
-                  className={`text-[0.69rem] leading-snug line-clamp-2 mt-0.5 ${
-                    isSelected ? 'text-blue-100/85' : 'text-slate-500'
-                  }`}
-                >
-                  {folder.subtitle}
-                </p>
-              </button>
+              />
             );
           })}
         </div>
@@ -1472,41 +1427,13 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
             </div>
 
             <div className="flex-1 bg-slate-100 flex items-center justify-center p-4 overflow-auto">
-              {previewRecord.fileDataUrl &&
-              (previewRecord.fileType.startsWith('image/') ||
-                /\.(png|jpe?g|webp|gif)$/i.test(previewRecord.fileName)) ? (
-                <img
-                  src={previewRecord.fileDataUrl}
-                  alt={previewRecord.fileName}
-                  className="max-w-full max-h-full object-contain rounded-lg shadow"
-                />
-              ) : previewRecord.fileDataUrl &&
-                (previewRecord.fileType.includes('pdf') ||
-                  previewRecord.fileName.toLowerCase().endsWith('.pdf')) ? (
-                <PdfCanvasPreview
-                  dataUrl={previewRecord.fileDataUrl}
-                  fileName={previewRecord.fileName}
-                  onDownload={() => handleDownload(previewRecord)}
-                />
-              ) : (
-                <div className="text-center space-y-3 bg-white rounded-xl p-8 border border-slate-200 shadow-sm">
-                  <FileText className="w-12 h-12 text-[#1565D8] mx-auto" />
-                  <p className="text-sm font-bold text-[#06295A]">
-                    Pré-visualização indisponível para este formato
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Clique em <strong>Baixar</strong> para abrir o arquivo no seu computador.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => handleDownload(previewRecord)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#06295A] text-white text-xs font-semibold cursor-pointer"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Baixar {previewRecord.fileName}</span>
-                  </button>
-                </div>
-              )}
+              <DocumentPreviewContent
+                fileDataUrl={previewRecord.fileDataUrl}
+                fileName={previewRecord.fileName}
+                fileType={previewRecord.fileType}
+                fileSize={previewRecord.fileSize}
+                onDownload={() => handleDownload(previewRecord)}
+              />
             </div>
           </div>
         </div>

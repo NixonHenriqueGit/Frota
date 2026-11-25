@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, ChevronRight, Layers, Search, X } from 'lucide-react';
+import { ArrowLeft, Layers, Search, X } from 'lucide-react';
 import { NavSection } from '../types/fleet';
+import { PLATFORM_CARD_GRID_CLASS, PlatformCard } from './PlatformCard';
 
 interface Bloco1HubViewProps {
   onSelectSection: (section: NavSection) => void;
@@ -9,6 +10,8 @@ interface Bloco1HubViewProps {
   sanitaryCount: number;
   complianceCount: number;
   equipmentCount: number;
+  visualStandardsCount: number;
+  safetyChecksCount: number;
   activeGroup: '1.1' | '1.2' | null;
   onSelectGroup: (group: '1.1' | '1.2' | null) => void;
 }
@@ -28,7 +31,7 @@ const GROUP_1_1_SUBTITLE =
 
 const GROUP_1_2_TITLE = '1.2 PADRÕES DE FROTA';
 const GROUP_1_2_SUBTITLE =
-  'Padrões de equipamentos de manuseio, transporte e diretrizes técnicas da frota';
+  'Padrões de equipamentos de manuseio, padrões visuais de bloqueio e lista de requisitos de qualidade e segurança';
 
 export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
   onSelectSection,
@@ -37,6 +40,8 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
   sanitaryCount,
   complianceCount,
   equipmentCount,
+  visualStandardsCount,
+  safetyChecksCount,
   activeGroup,
   onSelectGroup,
 }) => {
@@ -104,8 +109,26 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
           'Padrão de Equipamentos de Manuseio e documentos técnicos da frota (Word / PDF)',
         countLabel: `${String(equipmentCount).padStart(2, '0')} arq.`,
       },
+      {
+        id: 'padroes-visuais',
+        group: '1.2',
+        kicker: '1.2.2 · VALIDAÇÃO VISUAL',
+        title: '1.2.2 PADRÕES VISUAIS',
+        subtitle:
+          'Checklist de Conformidade da Frota (Caminhões, Carretas, Paleteiras) e Equipamentos de Armazém',
+        countLabel: `${String(visualStandardsCount).padStart(2, '0')} val.`,
+      },
+      {
+        id: 'lista-requisitos',
+        group: '1.2',
+        kicker: '1.2.3 · QUALIDADE E SEGURANÇA',
+        title: '1.2.3 LISTA DE REQUISITOS - QUALIDADE E SEGURANÇA',
+        subtitle:
+          'Check de Segurança mensal (Entrega, Puxada, Armazém) e Blitz de Entrega rápida (55 itens)',
+        countLabel: `${String(safetyChecksCount).padStart(2, '0')} placas`,
+      },
     ],
-    [equipmentCount]
+    [equipmentCount, visualStandardsCount, safetyChecksCount]
   );
 
   const allModules = useMemo(() => [...modules11, ...modules12], [modules11, modules12]);
@@ -146,7 +169,7 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
         kicker: '1.2 · BLOCO 1',
         title: GROUP_1_2_TITLE,
         subtitle: GROUP_1_2_SUBTITLE,
-        countLabel: `${String(modules12.length).padStart(2, '0')} mód.`,
+        countLabel: `${String(modules12.length).padStart(2, '0')} móds.`,
         statusLabel: 'Módulo ativo',
       },
     ],
@@ -281,42 +304,17 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
       {/* Root Group Cards: 1.1 & 1.2 */}
       {showRootGroups ? (
         <section aria-label="Categorias do Bloco 1">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className={PLATFORM_CARD_GRID_CLASS}>
             {matchingRootGroups.map((group) => (
-              <button
+              <PlatformCard
                 key={group.id}
-                type="button"
+                kicker={group.kicker}
+                countLabel={group.countLabel}
+                title={group.title}
+                subtitle={group.subtitle}
+                statusLabel={group.statusLabel}
                 onClick={() => onSelectGroup(group.id)}
-                className="group relative flex flex-col justify-between min-h-[155px] sm:min-h-[168px] rounded-xl border border-[#0B3C7D] bg-gradient-to-br from-[#072B5E] via-[#0B3C7D] to-[#1565D8] p-3.5 text-left text-white shadow-[0_6px_14px_rgba(11,60,125,0.2)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(11,60,125,0.3)] active:scale-[0.995] transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8]"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[0.62rem] font-semibold uppercase tracking-wider text-blue-200/90 truncate">
-                    {group.kicker}
-                  </span>
-                  <span className="font-mono-tabular text-[0.72rem] font-bold text-blue-100 whitespace-nowrap shrink-0">
-                    {group.countLabel}
-                  </span>
-                </div>
-
-                <div className="my-2.5">
-                  <h3 className="font-display text-[0.88rem] font-extrabold leading-snug tracking-tight text-white">
-                    {group.title}
-                  </h3>
-                  <p className="text-[0.72rem] leading-snug text-blue-100/85 mt-1.5 line-clamp-3">
-                    {group.subtitle}
-                  </p>
-                </div>
-
-                <div className="pt-2.5 border-t border-white/15 flex items-center justify-between gap-2">
-                  <span className="text-[0.68rem] font-medium text-blue-100/80">
-                    {group.statusLabel}
-                  </span>
-                  <span className="inline-flex items-center gap-0.5 text-[0.72rem] font-bold text-white whitespace-nowrap shrink-0">
-                    <span>Abrir</span>
-                    <ChevronRight className="w-3.5 h-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
-                  </span>
-                </div>
-              </button>
+              />
             ))}
           </div>
         </section>
@@ -326,7 +324,7 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
             Nenhum módulo encontrado para &ldquo;{search}&rdquo;.
           </p>
           <p className="text-xs text-slate-500 mt-1">
-            Tente buscar pelo código (1.1, 1.2, 1.1.1 a 1.1.5 ou 1.2.1) ou pelo nome do módulo.
+            Tente buscar pelo código (1.1, 1.2, 1.1.1 a 1.1.5, 1.2.1 a 1.2.3) ou pelo nome do módulo.
           </p>
           <button
             type="button"
@@ -338,45 +336,19 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
         </div>
       ) : (
         <section aria-label={heroTitle}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className={PLATFORM_CARD_GRID_CLASS}>
             {filteredModules.map((mod) => (
-              <button
+              <PlatformCard
                 key={mod.id}
-                type="button"
+                kicker={mod.kicker}
+                countLabel={mod.countLabel}
+                title={mod.title}
+                subtitle={mod.subtitle}
                 onClick={() => {
                   onSelectGroup(mod.group);
                   onSelectSection(mod.id);
                 }}
-                className="group relative flex flex-col justify-between min-h-[155px] sm:min-h-[168px] rounded-xl border border-[#0B3C7D] bg-gradient-to-br from-[#072B5E] via-[#0B3C7D] to-[#1565D8] p-3.5 text-left text-white shadow-[0_6px_14px_rgba(11,60,125,0.2)] hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(11,60,125,0.3)] active:scale-[0.995] transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8]"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[0.62rem] font-semibold uppercase tracking-wider text-blue-200/90 truncate">
-                    {mod.kicker}
-                  </span>
-                  <span className="font-mono-tabular text-[0.72rem] font-bold text-blue-100 whitespace-nowrap shrink-0">
-                    {mod.countLabel}
-                  </span>
-                </div>
-
-                <div className="my-2.5">
-                  <h3 className="font-display text-[0.88rem] font-extrabold leading-snug tracking-tight text-white">
-                    {mod.title}
-                  </h3>
-                  <p className="text-[0.72rem] leading-snug text-blue-100/85 mt-1.5 line-clamp-3">
-                    {mod.subtitle}
-                  </p>
-                </div>
-
-                <div className="pt-2.5 border-t border-white/15 flex items-center justify-between gap-2">
-                  <span className="text-[0.68rem] font-medium text-blue-100/80">
-                    Módulo ativo
-                  </span>
-                  <span className="inline-flex items-center gap-0.5 text-[0.72rem] font-bold text-white whitespace-nowrap shrink-0">
-                    <span>Abrir</span>
-                    <ChevronRight className="w-3.5 h-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
-                  </span>
-                </div>
-              </button>
+              />
             ))}
           </div>
         </section>

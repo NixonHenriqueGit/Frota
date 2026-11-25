@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { LegalizedDocumentRecord, Vehicle } from '../types/fleet';
-import { PdfCanvasPreview } from './PdfCanvasPreview';
+import { DocumentPreviewContent } from './DocumentPreviewContent';
 import { MAX_LEGALIZED_FILE_BYTES } from '../services/fleetFirestore';
 
 const SANITARY_FOLDER = 'LAUDO DE VIGILÂNCIA SANITÁRIA' as const;
@@ -1076,41 +1076,13 @@ export const SanitaryLaudoView: React.FC<SanitaryLaudoViewProps> = ({
             </div>
 
             <div className="flex-1 bg-slate-100 flex items-center justify-center p-4 overflow-auto">
-              {previewRecord.fileDataUrl &&
-              (previewRecord.fileType.startsWith('image/') ||
-                /\.(png|jpe?g|webp|gif)$/i.test(previewRecord.fileName)) ? (
-                <img
-                  src={previewRecord.fileDataUrl}
-                  alt={previewRecord.fileName}
-                  className="max-w-full max-h-full object-contain rounded-lg shadow"
-                />
-              ) : previewRecord.fileDataUrl &&
-                (previewRecord.fileType.includes('pdf') ||
-                  previewRecord.fileName.toLowerCase().endsWith('.pdf')) ? (
-                <PdfCanvasPreview
-                  dataUrl={previewRecord.fileDataUrl}
-                  fileName={previewRecord.fileName}
-                  onDownload={() => handleDownload(previewRecord)}
-                />
-              ) : (
-                <div className="text-center space-y-3 bg-white rounded-xl p-8 border border-slate-200 shadow-sm">
-                  <FileText className="w-12 h-12 text-[#1565D8] mx-auto" />
-                  <p className="text-sm font-bold text-[#06295A]">
-                    Pré-visualização indisponível para este formato
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Clique em <strong>Baixar</strong> para abrir o arquivo no seu computador.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => handleDownload(previewRecord)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#06295A] text-white text-xs font-semibold cursor-pointer"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Baixar {previewRecord.fileName}</span>
-                  </button>
-                </div>
-              )}
+              <DocumentPreviewContent
+                fileDataUrl={previewRecord.fileDataUrl}
+                fileName={previewRecord.fileName}
+                fileType={previewRecord.fileType}
+                fileSize={previewRecord.fileSize}
+                onDownload={() => handleDownload(previewRecord)}
+              />
             </div>
           </div>
         </div>

@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
-import {
-  FileSpreadsheet,
-  FileText,
-  Key,
-  ShieldCheck,
-} from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
+import { PLATFORM_CARD_GRID_CLASS, PlatformCard } from './PlatformCard';
 
 interface DpoDocumentItem {
   id: string;
@@ -102,69 +98,21 @@ export const ProcessGuaranteeView: React.FC = () => {
       </div>
 
       {/* Grid of the 3 Official Documents */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+      <div className={PLATFORM_CARD_GRID_CLASS}>
         {DPO_DOCUMENTS.map((doc) => {
           const isSelected = selectedDocId === doc.id;
           return (
-            <button
+            <PlatformCard
               key={doc.id}
-              type="button"
+              kicker={`${doc.code} · ${doc.frequency}`}
+              countLabel={doc.status}
+              title={doc.title}
+              subtitle={doc.description}
+              statusLabel={doc.type}
+              actionLabel={isSelected ? 'Ativo' : 'Abrir'}
+              selected={isSelected}
               onClick={() => setSelectedDocId(doc.id)}
-              className={`group relative flex flex-col justify-between rounded-xl border p-4 text-left transition-all duration-150 cursor-pointer ${
-                isSelected
-                  ? 'bg-gradient-to-br from-[#072B5E] via-[#0B3C7D] to-[#1565D8] border-[#0B3C7D] text-white shadow-lg'
-                  : 'bg-white border-slate-200/90 text-[#06295A] hover:border-[#60A5FA] shadow-sm hover:shadow-md'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span
-                    className={`font-mono-tabular text-xs font-bold px-2 py-0.5 rounded ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-blue-50 text-[#1565D8]'
-                    }`}
-                  >
-                    {doc.code}
-                  </span>
-                  <span
-                    className={`text-[0.68rem] font-semibold px-2 py-0.5 rounded-full ${
-                      isSelected ? 'bg-emerald-400/20 text-emerald-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    }`}
-                  >
-                    {doc.status}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 mb-1.5">
-                  {doc.type.includes('Excel') ? (
-                    <FileSpreadsheet className={`w-4 h-4 ${isSelected ? 'text-emerald-300' : 'text-emerald-600'}`} />
-                  ) : doc.type.includes('PDF') ? (
-                    <FileText className={`w-4 h-4 ${isSelected ? 'text-red-300' : 'text-red-600'}`} />
-                  ) : (
-                    <Key className={`w-4 h-4 ${isSelected ? 'text-amber-300' : 'text-amber-600'}`} />
-                  )}
-                  <span className={`text-[0.7rem] font-semibold uppercase ${isSelected ? 'text-blue-200' : 'text-slate-500'}`}>
-                    {doc.type}
-                  </span>
-                </div>
-
-                <h3
-                  className={`font-display text-[0.92rem] font-bold leading-snug tracking-tight ${
-                    isSelected ? 'text-white' : 'text-[#06295A]'
-                  }`}
-                >
-                  {doc.title}
-                </h3>
-              </div>
-
-              <div
-                className={`mt-4 pt-2.5 border-t text-[0.72rem] flex items-center justify-between ${
-                  isSelected ? 'border-white/15 text-blue-100' : 'border-slate-100 text-slate-500'
-                }`}
-              >
-                <span>{doc.frequency}</span>
-                <span className="font-semibold">{doc.owner}</span>
-              </div>
-            </button>
+            />
           );
         })}
       </div>

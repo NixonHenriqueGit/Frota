@@ -100,11 +100,24 @@ const VALID_LEGALIZED_FOLDERS = new Set<LegalizedFolderName>([
   'CRONOTACÓGRAFOS',
   'LAUDO DE VIGILÂNCIA SANITÁRIA',
   'PADRÕES DE EQUIPAMENTOS',
+  'PADRÕES VISUAIS',
+  'CHECK DE SEGURANÇA',
+  'BLITZ DE ENTREGA',
 ]);
 const EQUIPMENT_STANDARD_ID_PREFIX = 'equip-';
+const VISUAL_STANDARD_ID_PREFIX = 'vp-';
+const SAFETY_CHECK_ID_PREFIX = 'cs-';
+const BLITZ_ENTREGA_ID_PREFIX = 'be-';
 
 function toFirestoreLegalizedFolder(folder: LegalizedFolderName): string {
-  if (folder === 'PADRÕES DE EQUIPAMENTOS') return 'ANTT';
+  if (
+    folder === 'PADRÕES DE EQUIPAMENTOS' ||
+    folder === 'PADRÕES VISUAIS' ||
+    folder === 'CHECK DE SEGURANÇA' ||
+    folder === 'BLITZ DE ENTREGA'
+  ) {
+    return 'ANTT';
+  }
   return VALID_LEGALIZED_FOLDERS.has(folder) ? folder : 'ANTT';
 }
 const VALID_CRLV_SUBFOLDERS = new Set<CrlvSubfolderName>([
@@ -543,11 +556,17 @@ export function isLegalizedChunkDoc(data: Record<string, unknown>): boolean {
 
 export function mapDocToLegalizedDoc(data: Record<string, unknown>): LegalizedDocFirestoreDoc {
   const id = String(data.id ?? '');
-  const folder: LegalizedFolderName = id.startsWith(EQUIPMENT_STANDARD_ID_PREFIX)
-    ? 'PADRÕES DE EQUIPAMENTOS'
-    : VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
-      ? (data.folder as LegalizedFolderName)
-      : 'ANTT';
+  const folder: LegalizedFolderName = id.startsWith(VISUAL_STANDARD_ID_PREFIX)
+    ? 'PADRÕES VISUAIS'
+    : id.startsWith(EQUIPMENT_STANDARD_ID_PREFIX)
+      ? 'PADRÕES DE EQUIPAMENTOS'
+      : id.startsWith(SAFETY_CHECK_ID_PREFIX)
+        ? 'CHECK DE SEGURANÇA'
+        : id.startsWith(BLITZ_ENTREGA_ID_PREFIX)
+          ? 'BLITZ DE ENTREGA'
+          : VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
+            ? (data.folder as LegalizedFolderName)
+            : 'ANTT';
   const rawSub = data.subfolder as CrlvSubfolderName | undefined;
   const subfolder =
     folder === 'CRLV' && rawSub && VALID_CRLV_SUBFOLDERS.has(rawSub) ? rawSub : '';
@@ -1378,10 +1397,19 @@ export async function addLegalizedDocInFirestore(
 ): Promise<void> {
   const rawSafeId = sanitizeFirestoreId(item.id);
   const safeId =
-    item.folder === 'PADRÕES DE EQUIPAMENTOS' &&
-    !rawSafeId.startsWith(EQUIPMENT_STANDARD_ID_PREFIX)
-      ? `${EQUIPMENT_STANDARD_ID_PREFIX}${rawSafeId}`.slice(0, 120)
-      : rawSafeId;
+    item.folder === 'PADRÕES VISUAIS' &&
+    !rawSafeId.startsWith(VISUAL_STANDARD_ID_PREFIX)
+      ? `${VISUAL_STANDARD_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+      : item.folder === 'PADRÕES DE EQUIPAMENTOS' &&
+          !rawSafeId.startsWith(EQUIPMENT_STANDARD_ID_PREFIX)
+        ? `${EQUIPMENT_STANDARD_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+        : item.folder === 'CHECK DE SEGURANÇA' &&
+            !rawSafeId.startsWith(SAFETY_CHECK_ID_PREFIX)
+          ? `${SAFETY_CHECK_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+          : item.folder === 'BLITZ DE ENTREGA' &&
+              !rawSafeId.startsWith(BLITZ_ENTREGA_ID_PREFIX)
+            ? `${BLITZ_ENTREGA_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+            : rawSafeId;
   const path = `legalizedDocs/${safeId}`;
   try {
     const rawDataUrl = typeof item.fileDataUrl === 'string' ? item.fileDataUrl : '';

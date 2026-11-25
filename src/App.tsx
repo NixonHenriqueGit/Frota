@@ -66,6 +66,9 @@ import { SanitaryLaudoView } from './components/SanitaryLaudoView';
 import { Bloco1HubView } from './components/Bloco1HubView';
 import { ComplianceCheckView } from './components/ComplianceCheckView';
 import { EquipmentStandardsView } from './components/EquipmentStandardsView';
+import { VisualStandardsView } from './components/VisualStandardsView';
+import { QualitySafetyRequirementsView } from './components/QualitySafetyRequirementsView';
+import { SAFETY_CHECK_SEED_ROWS } from './data/safetyCheckSeed';
 import { VehicleModal } from './components/VehicleModal';
 import { ImportFleetModal } from './components/ImportFleetModal';
 
@@ -297,7 +300,10 @@ export default function App() {
       legalizedDocs.filter(
         (d) =>
           d.folder !== 'LAUDO DE VIGILÂNCIA SANITÁRIA' &&
-          d.folder !== 'PADRÕES DE EQUIPAMENTOS'
+          d.folder !== 'PADRÕES DE EQUIPAMENTOS' &&
+          d.folder !== 'PADRÕES VISUAIS' &&
+          d.folder !== 'CHECK DE SEGURANÇA' &&
+          d.folder !== 'BLITZ DE ENTREGA'
       ),
     [legalizedDocs]
   );
@@ -309,6 +315,21 @@ export default function App() {
 
   const equipmentStandardDocs = useMemo(
     () => legalizedDocs.filter((d) => d.folder === 'PADRÕES DE EQUIPAMENTOS'),
+    [legalizedDocs]
+  );
+
+  const visualStandardDocs = useMemo(
+    () => legalizedDocs.filter((d) => d.folder === 'PADRÕES VISUAIS'),
+    [legalizedDocs]
+  );
+
+  const safetyCheckDocs = useMemo(
+    () => legalizedDocs.filter((d) => d.folder === 'CHECK DE SEGURANÇA'),
+    [legalizedDocs]
+  );
+
+  const blitzEntregaDocs = useMemo(
+    () => legalizedDocs.filter((d) => d.folder === 'BLITZ DE ENTREGA'),
     [legalizedDocs]
   );
 
@@ -637,6 +658,12 @@ export default function App() {
                   sanitaryCount={sanitaryLaudoDocs.length}
                   complianceCount={complianceChecks.length}
                   equipmentCount={equipmentStandardDocs.length}
+                  visualStandardsCount={visualStandardDocs.length}
+                  safetyChecksCount={
+                    safetyCheckDocs.length > 0
+                      ? safetyCheckDocs.length
+                      : SAFETY_CHECK_SEED_ROWS.length
+                  }
                   activeGroup={bloco1Group}
                   onSelectGroup={setBloco1Group}
                 />
@@ -679,6 +706,27 @@ export default function App() {
               {activeSection === 'padroes-equipamentos' && (
                 <EquipmentStandardsView
                   records={equipmentStandardDocs}
+                  onAddRecords={handleAddLegalizedDocs}
+                  onUpdateRecord={handleUpdateLegalizedDoc}
+                  onDeleteRecord={handleDeleteLegalizedDoc}
+                />
+              )}
+
+              {activeSection === 'padroes-visuais' && (
+                <VisualStandardsView
+                  records={visualStandardDocs}
+                  vehicles={vehicles}
+                  onAddRecords={handleAddLegalizedDocs}
+                  onUpdateRecord={handleUpdateLegalizedDoc}
+                  onDeleteRecord={handleDeleteLegalizedDoc}
+                />
+              )}
+
+              {activeSection === 'lista-requisitos' && (
+                <QualitySafetyRequirementsView
+                  records={safetyCheckDocs}
+                  blitzRecords={blitzEntregaDocs}
+                  vehicles={vehicles}
                   onAddRecords={handleAddLegalizedDocs}
                   onUpdateRecord={handleUpdateLegalizedDoc}
                   onDeleteRecord={handleDeleteLegalizedDoc}

@@ -47,6 +47,16 @@ const SECTION_HEADERS: Record<NavSection, { context: string; subtitle: string }>
     subtitle:
       'Padrões de equipamentos de manuseio, transporte e documentos técnicos oficiais da frota',
   },
+  'padroes-visuais': {
+    context: 'Frota Pau Brasil – Brejo',
+    subtitle:
+      'Inspeção visual e validação por placa ou equipamento (Frota e Equipamentos de Armazém)',
+  },
+  'lista-requisitos': {
+    context: 'Frota Pau Brasil – Brejo',
+    subtitle:
+      'Lista de Requisitos - Qualidade e Segurança: Check de Segurança mensal por operação e placa',
+  },
   'visao-geral': {
     context: 'Frota Pau Brasil – Brejo',
     subtitle: 'Acompanhe em tempo real o desempenho e a documentação da frota',
@@ -130,7 +140,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                           ? '1.1.5 Check Documentação Fora de Conformidade'
                           : activeSection === 'padroes-equipamentos'
                             ? '1.2.1 Padrões de Equipamentos'
-                            : '1.1.2 Controle de Documentos'}
+                            : activeSection === 'padroes-visuais'
+                              ? '1.2.2 Padrões Visuais'
+                              : activeSection === 'lista-requisitos'
+                                ? '1.2.3 Lista de Requisitos - Qualidade e Segurança'
+                                : '1.1.2 Controle de Documentos'}
               </span>
               <span className="mx-2 text-slate-300 font-normal" aria-hidden="true">
                 |
@@ -150,7 +164,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         activeSection !== 'processo-garantia' &&
         activeSection !== 'laudo-vigilancia' &&
         activeSection !== 'check-conformidade' &&
-        activeSection !== 'padroes-equipamentos' && (
+        activeSection !== 'padroes-equipamentos' &&
+        activeSection !== 'padroes-visuais' &&
+        activeSection !== 'lista-requisitos' && (
         <div className="pt-1.5 border-t border-slate-200/70">
           <nav
             aria-label="Subseções de 1.1.2 Controle de Documentos"

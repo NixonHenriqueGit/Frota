@@ -156,9 +156,97 @@ export type LegalizedFolderName =
   | 'CRLV'
   | 'CRONOTACÓGRAFOS'
   | 'LAUDO DE VIGILÂNCIA SANITÁRIA'
-  | 'PADRÕES DE EQUIPAMENTOS';
+  | 'PADRÕES DE EQUIPAMENTOS'
+  | 'PADRÕES VISUAIS'
+  | 'CHECK DE SEGURANÇA'
+  | 'BLITZ DE ENTREGA';
+
+export type BlitzItemStatus = 'OK' | 'NOK' | 'NA';
+
+export type BlitzZoneKey =
+  | 'cabine'
+  | 'frente'
+  | 'bau'
+  | 'traseira'
+  | 'pneus'
+  | 'eletrica';
+
+export interface BlitzEntregaItemDef {
+  id: string;
+  zone: BlitzZoneKey;
+  label: string;
+}
+
+export interface BlitzEntregaPayload {
+  id: string;
+  displayId: string;
+  mes: ComplianceMonth;
+  criador: string;
+  data: string;
+  hora: string;
+  percentual: number;
+  mapa: string;
+  placa: string;
+  nome: string;
+  cpf: string;
+  items: Record<string, BlitzItemStatus>;
+}
+
+export type SafetyCheckOperation = 'ENTREGA' | 'PUXADA' | 'ARMAZÉM';
+
+export type SafetyCheckMonthKey =
+  | 'jan'
+  | 'fev'
+  | 'mar'
+  | 'abr'
+  | 'mai'
+  | 'jun'
+  | 'jul'
+  | 'ago'
+  | 'set'
+  | 'out'
+  | 'nov'
+  | 'dez';
+
+export interface SafetyCheckRowPayload {
+  id: string;
+  operation: SafetyCheckOperation;
+  unit: string;
+  plate: string;
+  months: Partial<Record<SafetyCheckMonthKey, number | null>>;
+  notes?: string;
+}
 
 export type CrlvSubfolderName = 'ENTREGA' | 'FROTA LEVE' | 'PUXADA';
+
+export type VisualStandardScope = 'frota' | 'equipamentos';
+
+export type VisualCheckStatus = 'CONFORME' | 'BLOQUEIO' | 'NA';
+
+export interface VisualChecklistItemDef {
+  id: string;
+  order: number;
+  name: string;
+  application: string;
+  severity: 'SEGURANÇA – BLOQUEIO' | 'QUALIDADE – BLOQUEIO';
+  anomaly: string;
+  imageUrl?: string;
+}
+
+export interface VisualCheckItemResponse {
+  status: VisualCheckStatus;
+  note?: string;
+}
+
+export interface VisualValidationPayload {
+  scope: VisualStandardScope;
+  assetLabel: string;
+  modalType: string;
+  inspector: string;
+  validatedAt: string;
+  generalNotes?: string;
+  items: Record<string, VisualCheckItemResponse>;
+}
 
 export interface LegalizedDocumentRecord {
   id: string;
@@ -214,6 +302,8 @@ export type NavSection =
   | 'laudo-vigilancia'
   | 'check-conformidade'
   | 'padroes-equipamentos'
+  | 'padroes-visuais'
+  | 'lista-requisitos'
   | 'visao-geral'
   | 'cadastro'
   | 'documentos'

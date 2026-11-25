@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { LegalizedDocumentRecord } from '../types/fleet';
-import { PdfCanvasPreview } from './PdfCanvasPreview';
+import { DocumentPreviewContent } from './DocumentPreviewContent';
 import { MAX_LEGALIZED_FILE_BYTES } from '../services/fleetFirestore';
 
 const EQUIPMENT_FOLDER = 'PADRÕES DE EQUIPAMENTOS' as const;
@@ -826,8 +826,8 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
       {/* Preview Modal */}
       {previewRecord && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="w-full max-w-4xl max-h-[90vh] rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-            <div className="px-5 py-3.5 bg-gradient-to-r from-[#072B5E] to-[#1256BA] text-white flex items-center justify-between gap-3">
+          <div className="w-full max-w-5xl h-[88vh] rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+            <div className="px-5 py-3.5 bg-gradient-to-r from-[#072B5E] to-[#1256BA] text-white flex items-center justify-between gap-3 shrink-0">
               <div className="min-w-0">
                 <h3 className="font-display text-sm font-extrabold truncate">
                   {previewRecord.fileName}
@@ -857,44 +857,13 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
             </div>
 
             <div className="flex-1 overflow-auto bg-slate-100 p-4 flex items-center justify-center min-h-[360px]">
-              {previewRecord.fileDataUrl &&
-              (previewRecord.fileType.includes('pdf') ||
-                previewRecord.fileName.toLowerCase().endsWith('.pdf')) ? (
-                <PdfCanvasPreview
-                  dataUrl={previewRecord.fileDataUrl}
-                  fileName={previewRecord.fileName}
-                  onDownload={() => handleDownload(previewRecord)}
-                />
-              ) : previewRecord.fileDataUrl &&
-                (previewRecord.fileType.startsWith('image/') ||
-                  /\.(png|jpe?g|webp|gif)$/i.test(previewRecord.fileName)) ? (
-                <img
-                  src={previewRecord.fileDataUrl}
-                  alt={previewRecord.fileName}
-                  className="max-w-full max-h-[72vh] rounded-lg shadow-md object-contain"
-                />
-              ) : (
-                <div className="max-w-md w-full rounded-xl bg-white border border-slate-200 p-6 text-center shadow-sm">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#1565D8] flex items-center justify-center mx-auto mb-3">
-                    <FileText className="w-6 h-6" />
-                  </div>
-                  <h4 className="font-display text-sm font-extrabold text-[#06295A] break-words">
-                    {previewRecord.fileName}
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                    Este arquivo ({getFileTypeLabel(previewRecord.fileType, previewRecord.fileName)},{' '}
-                    {formatBytes(previewRecord.fileSize)}) está salvo no banco de dados. Clique abaixo para baixar e abrir no Microsoft Word ou visualizador padrão.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => handleDownload(previewRecord)}
-                    className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B3C7D] hover:bg-[#1256BA] text-white text-xs font-semibold transition-colors cursor-pointer"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Baixar {getFileTypeLabel(previewRecord.fileType, previewRecord.fileName)}</span>
-                  </button>
-                </div>
-              )}
+              <DocumentPreviewContent
+                fileDataUrl={previewRecord.fileDataUrl}
+                fileName={previewRecord.fileName}
+                fileType={previewRecord.fileType}
+                fileSize={previewRecord.fileSize}
+                onDownload={() => handleDownload(previewRecord)}
+              />
             </div>
           </div>
         </div>
