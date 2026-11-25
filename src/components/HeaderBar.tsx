@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Calendar,
+  ArrowLeft,
   Camera,
   ClipboardCheck,
   FileText,
@@ -20,6 +20,10 @@ interface HeaderBarProps {
 }
 
 const SECTION_HEADERS: Record<NavSection, { context: string; subtitle: string }> = {
+  'bloco-1': {
+    context: 'Frota Pau Brasil – Brejo',
+    subtitle: 'Central de módulos do Bloco 1: documentos legalizados, controle da frota, DPO e laudos',
+  },
   'documentos-legalizados': {
     context: 'Frota Pau Brasil – Brejo',
     subtitle:
@@ -34,6 +38,11 @@ const SECTION_HEADERS: Record<NavSection, { context: string; subtitle: string }>
     context: 'Frota Pau Brasil – Brejo',
     subtitle:
       'Laudo técnico, alvará sanitário e certidões oficiais da Vigilância Sanitária',
+  },
+  'check-conformidade': {
+    context: 'Frota Pau Brasil – Brejo',
+    subtitle:
+      'Acompanhamento mensal de documentos obrigatórios por placa (CRLV, Cronotacógrafo, ANTT e Contrato de Locação)',
   },
   'visao-geral': {
     context: 'Frota Pau Brasil – Brejo',
@@ -71,13 +80,12 @@ const SUB_TABS: {
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
   activeSection,
-  lastUpdated,
   onSelectSection,
   onToggleMenu,
   onAddVehicle,
 }) => {
   const { context, subtitle } = SECTION_HEADERS[activeSection];
-  const [datePart, timePart] = lastUpdated.split(' ');
+  const isInsideSubmodule = activeSection !== 'bloco-1';
 
   return (
     <header className="sticky top-0 z-30 bg-gradient-to-b from-white via-white to-[#F7FAFE] border-b border-slate-200/90 shadow-[0_2px_12px_rgba(6,41,90,0.05)] px-4 sm:px-5 pt-2.5 pb-2 no-print">
@@ -93,16 +101,32 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <Menu className="w-5 h-5" />
           </button>
 
+          {isInsideSubmodule && (
+            <button
+              type="button"
+              onClick={() => onSelectSection('bloco-1')}
+              title="Voltar aos módulos do Bloco 1"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[34px] rounded-xl bg-[#EEF4FC] hover:bg-[#DFEBFB] border border-[#CFE0F5] text-[#0B3C7D] text-xs font-bold whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1565D8]/50 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Bloco 1</span>
+            </button>
+          )}
+
           <div className="min-w-0">
             <h1 className="font-display text-base sm:text-[1.22rem] font-extrabold text-[#06295A] tracking-tight leading-tight truncate">
               <span className="text-[#1256BA]">
-                {activeSection === 'documentos-legalizados'
-                  ? '1.1.1 Documentos Legalizados'
-                  : activeSection === 'processo-garantia'
-                    ? '1.1.3 Processo para Garantir Documentação'
-                    : activeSection === 'laudo-vigilancia'
-                      ? '1.1.4 Laudo de Vigilância Sanitária'
-                      : '1.1.2 Controle de Documentos'}
+                {activeSection === 'bloco-1'
+                  ? 'BLOCO 1 · Documentos da Frota'
+                  : activeSection === 'documentos-legalizados'
+                    ? '1.1.1 Documentos Legalizados'
+                    : activeSection === 'processo-garantia'
+                      ? '1.1.3 Processo para Garantir Documentação'
+                      : activeSection === 'laudo-vigilancia'
+                        ? '1.1.4 Laudo de Vigilância Sanitária'
+                        : activeSection === 'check-conformidade'
+                          ? '1.1.5 Check Documentação Fora de Conformidade'
+                          : '1.1.2 Controle de Documentos'}
               </span>
               <span className="mx-2 text-slate-300 font-normal" aria-hidden="true">
                 |
@@ -116,23 +140,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <div className="hidden md:flex items-center gap-2 text-xs text-slate-600">
-            <Calendar className="w-4 h-4 text-[#1565D8] shrink-0" />
-            <div className="leading-tight">
-              <span className="block text-[10.5px] font-medium text-slate-500">
-                Atualizado em
-              </span>
-              <span className="font-mono-tabular text-[0.8rem] font-bold text-[#06295A]">
-                {datePart}
-                {timePart ? (
-                  <span className="ml-1.5 font-semibold text-slate-600">{timePart}</span>
-                ) : null}
-              </span>
-            </div>
-          </div>
-
-          <span className="hidden md:block h-6 w-px bg-slate-200" aria-hidden="true" />
-
           <button
             type="button"
             onClick={onAddVehicle}
@@ -145,9 +152,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       </div>
 
       {/* Sub-navigation Menu Rail (1.1.2 Controle de Documentos) */}
-      {activeSection !== 'documentos-legalizados' &&
+      {activeSection !== 'bloco-1' &&
+        activeSection !== 'documentos-legalizados' &&
         activeSection !== 'processo-garantia' &&
-        activeSection !== 'laudo-vigilancia' && (
+        activeSection !== 'laudo-vigilancia' &&
+        activeSection !== 'check-conformidade' && (
         <div className="pt-1.5 border-t border-slate-200/70">
           <nav
             aria-label="Subseções de 1.1.2 Controle de Documentos"

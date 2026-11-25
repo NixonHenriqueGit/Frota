@@ -1,13 +1,10 @@
 import React, { useId, useState } from 'react';
 import {
-  FileCheck2,
+  ChevronRight,
   FileSpreadsheet,
-  FileText,
-  FolderCheck,
   Layers,
   RotateCcw,
   Settings,
-  ShieldCheck,
   X,
 } from 'lucide-react';
 import { NavSection } from '../types/fleet';
@@ -79,6 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const isBloco1Active =
+    activeSection === 'bloco-1' ||
     activeSection === 'documentos-legalizados' ||
     activeSection === 'visao-geral' ||
     activeSection === 'cadastro' ||
@@ -86,7 +84,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     activeSection === 'evidencias' ||
     activeSection === 'checklists' ||
     activeSection === 'processo-garantia' ||
-    activeSection === 'laudo-vigilancia';
+    activeSection === 'laudo-vigilancia' ||
+    activeSection === 'check-conformidade';
 
   const sidebarContent = (
     <aside className="relative flex h-full w-[14.5rem] flex-col justify-between overflow-hidden bg-gradient-to-b from-[#001A6F] via-[#001A6E] to-[#00175E] text-white select-none">
@@ -119,9 +118,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <button
             type="button"
-            onClick={() => handleSelect('visao-geral')}
-            title="Voltar para o início"
-            aria-label="Voltar para o início"
+            onClick={() => handleSelect('bloco-1')}
+            title="Voltar para o Bloco 1"
+            aria-label="Voltar para o Bloco 1"
             className="mx-auto block w-full rounded-xl py-1 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] transition-colors cursor-pointer"
           >
             <div className="mx-auto w-[3.5rem] h-[4.2rem] flex items-center justify-center mb-1.5">
@@ -138,149 +137,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <nav className="px-3 space-y-2" aria-label="Navegação principal">
-          <div className="rounded-2xl transition-all duration-200">
-            <button
-              type="button"
-              onClick={() => handleSelect('documentos-legalizados')}
-              aria-current={isBloco1Active ? 'page' : undefined}
-              className={`group relative w-full flex items-center justify-between gap-2.5 p-3 rounded-xl text-left transition-all duration-200 cursor-pointer border overflow-hidden ${
-                isBloco1Active
-                  ? 'bg-gradient-to-r from-[#257BFF] via-[#1B67EE] to-[#1350C9] border-[#7DD3FC]/50 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_10px_24px_rgba(20,105,242,0.48)]'
-                  : 'bg-gradient-to-r from-[#1A5FE0]/95 via-[#154FC4]/95 to-[#0F3CA0]/95 hover:from-[#257BFF] hover:via-[#1B67EE] hover:to-[#1350C9] border-[#60A5FA]/35 hover:border-[#7DD3FC]/55 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_20px_rgba(8,35,112,0.48)]'
-              }`}
-            >
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent"
-              />
+          <button
+            type="button"
+            onClick={() => handleSelect('bloco-1')}
+            aria-current={isBloco1Active ? 'page' : undefined}
+            className={`group relative w-full flex items-center justify-between gap-2.5 p-3 rounded-xl text-left transition-all duration-200 cursor-pointer border overflow-hidden ${
+              isBloco1Active
+                ? 'bg-gradient-to-r from-[#257BFF] via-[#1B67EE] to-[#1350C9] border-[#7DD3FC]/55 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_10px_24px_rgba(20,105,242,0.48)]'
+                : 'bg-gradient-to-r from-[#1A5FE0]/95 via-[#154FC4]/95 to-[#0F3CA0]/95 hover:from-[#257BFF] hover:via-[#1B67EE] hover:to-[#1350C9] border-[#60A5FA]/35 hover:border-[#7DD3FC]/55 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_20px_rgba(8,35,112,0.48)]'
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent"
+            />
 
-              <span className="flex items-center gap-2.5 min-w-0">
-                <span className="w-8 h-8 rounded-lg bg-white/15 border border-white/25 flex items-center justify-center shrink-0 shadow-[inset_0_1px_2px_rgba(255,255,255,0.2)] group-hover:bg-white/20 transition-colors">
-                  <Layers className="w-4 h-4 text-white" />
+            <span className="flex items-center gap-2.5 min-w-0">
+              <span className="w-8 h-8 rounded-lg bg-white/15 border border-white/25 flex items-center justify-center shrink-0 shadow-[inset_0_1px_2px_rgba(255,255,255,0.2)] group-hover:bg-white/20 transition-colors">
+                <Layers className="w-4 h-4 text-white" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[0.84rem] font-extrabold tracking-wider text-white leading-tight truncate">
+                  BLOCO 1
                 </span>
-                <span className="min-w-0">
-                  <span className="block text-[0.84rem] font-extrabold tracking-wider text-white leading-tight truncate">
-                    BLOCO 1
-                  </span>
-                  <span className="block text-[0.68rem] font-medium text-blue-100/85 leading-tight mt-0.5 truncate">
-                    Documentos da Frota
-                  </span>
+                <span className="block text-[0.68rem] font-medium text-blue-100/90 leading-tight mt-0.5 truncate">
+                  Documentos da Frota
                 </span>
               </span>
-            </button>
+            </span>
 
-            <div className="mt-1.5 rounded-xl bg-[#051B5E]/90 border border-[#3B82F6]/30 p-1.5 shadow-[inset_0_2px_10px_rgba(0,8,40,0.45)] space-y-1">
-              <button
-                type="button"
-                onClick={() => handleSelect('documentos-legalizados')}
-                aria-current={activeSection === 'documentos-legalizados' ? 'page' : undefined}
-                className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[0.76rem] leading-snug text-left font-bold border transition-all duration-150 cursor-pointer ${
-                  activeSection === 'documentos-legalizados'
-                    ? 'bg-gradient-to-r from-[#2B86FF]/35 to-[#1469F2]/25 border-[#7DD3FC]/55 text-white shadow-[0_4px_12px_rgba(10,36,114,0.35)]'
-                    : 'bg-transparent hover:bg-white/10 border-transparent text-blue-100/85 hover:text-white'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                    activeSection === 'documentos-legalizados'
-                      ? 'bg-[#38BDF8] shadow-[0_0_8px_#38BDF8]'
-                      : 'bg-blue-300/35 group-hover:bg-blue-200/70'
-                  }`}
-                />
-                <FolderCheck
-                  className={`w-[15px] h-[15px] shrink-0 ${
-                    activeSection === 'documentos-legalizados'
-                      ? 'text-amber-300'
-                      : 'text-blue-200/75 group-hover:text-amber-200'
-                  }`}
-                />
-                <span className="tracking-tight">1.1.1 DOCUMENTOS LEGALIZADOS</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelect('visao-geral')}
-                aria-current={activeSection === 'visao-geral' ? 'page' : undefined}
-                className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[0.76rem] leading-snug text-left font-bold border transition-all duration-150 cursor-pointer ${
-                  activeSection === 'visao-geral'
-                    ? 'bg-gradient-to-r from-[#2B86FF]/35 to-[#1469F2]/25 border-[#7DD3FC]/55 text-white shadow-[0_4px_12px_rgba(10,36,114,0.35)]'
-                    : 'bg-transparent hover:bg-white/10 border-transparent text-blue-100/85 hover:text-white'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                    activeSection === 'visao-geral'
-                      ? 'bg-[#38BDF8] shadow-[0_0_8px_#38BDF8]'
-                      : 'bg-blue-300/35 group-hover:bg-blue-200/70'
-                  }`}
-                />
-                <FileText
-                  className={`w-[15px] h-[15px] shrink-0 ${
-                    activeSection === 'visao-geral'
-                      ? 'text-[#93C5FD]'
-                      : 'text-blue-200/75 group-hover:text-white'
-                  }`}
-                  fill="currentColor"
-                  fillOpacity={0.22}
-                />
-                <span className="tracking-tight">1.1.2 CONTROLE DE DOCUMENTOS</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelect('processo-garantia')}
-                aria-current={activeSection === 'processo-garantia' ? 'page' : undefined}
-                className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[0.76rem] leading-snug text-left font-bold border transition-all duration-150 cursor-pointer ${
-                  activeSection === 'processo-garantia'
-                    ? 'bg-gradient-to-r from-[#2B86FF]/35 to-[#1469F2]/25 border-[#7DD3FC]/55 text-white shadow-[0_4px_12px_rgba(10,36,114,0.35)]'
-                    : 'bg-transparent hover:bg-white/10 border-transparent text-blue-100/85 hover:text-white'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                    activeSection === 'processo-garantia'
-                      ? 'bg-[#38BDF8] shadow-[0_0_8px_#38BDF8]'
-                      : 'bg-blue-300/35 group-hover:bg-blue-200/70'
-                  }`}
-                />
-                <ShieldCheck
-                  className={`w-[15px] h-[15px] shrink-0 ${
-                    activeSection === 'processo-garantia'
-                      ? 'text-emerald-300'
-                      : 'text-blue-200/75 group-hover:text-emerald-200'
-                  }`}
-                />
-                <span className="tracking-tight">1.1.3 PROCESSO PARA GARANTIR DOCUMENTAÇÃO</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelect('laudo-vigilancia')}
-                aria-current={activeSection === 'laudo-vigilancia' ? 'page' : undefined}
-                className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[0.76rem] leading-snug text-left font-bold border transition-all duration-150 cursor-pointer ${
-                  activeSection === 'laudo-vigilancia'
-                    ? 'bg-gradient-to-r from-[#2B86FF]/35 to-[#1469F2]/25 border-[#7DD3FC]/55 text-white shadow-[0_4px_12px_rgba(10,36,114,0.35)]'
-                    : 'bg-transparent hover:bg-white/10 border-transparent text-blue-100/85 hover:text-white'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
-                    activeSection === 'laudo-vigilancia'
-                      ? 'bg-[#38BDF8] shadow-[0_0_8px_#38BDF8]'
-                      : 'bg-blue-300/35 group-hover:bg-blue-200/70'
-                  }`}
-                />
-                <FileCheck2
-                  className={`w-[15px] h-[15px] shrink-0 ${
-                    activeSection === 'laudo-vigilancia'
-                      ? 'text-cyan-300'
-                      : 'text-blue-200/75 group-hover:text-cyan-200'
-                  }`}
-                />
-                <span className="tracking-tight">1.1.4 LAUDO DE VIGILÂNCIA SANITÁRIA</span>
-              </button>
-            </div>
-          </div>
+            <ChevronRight className="w-4 h-4 text-blue-100/80 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
+          </button>
         </nav>
       </div>
 

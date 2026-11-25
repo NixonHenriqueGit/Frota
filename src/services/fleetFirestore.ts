@@ -6,13 +6,16 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 import {
   OperationType,
+  SHARED_WORKSPACE_ID,
   db,
   handleFirestoreError,
 } from '../firebase';
@@ -26,6 +29,10 @@ import {
 import {
   ChecklistKey,
   Company,
+  ComplianceCheckRecord,
+  ComplianceDocStatus,
+  ComplianceMonth,
+  ComplianceOperation,
   CrlvSubfolderName,
   DocumentStatus,
   DocumentType,
@@ -98,6 +105,31 @@ const VALID_CRLV_SUBFOLDERS = new Set<CrlvSubfolderName>([
   'FROTA LEVE',
   'PUXADA',
 ]);
+
+const VALID_COMPLIANCE_MONTHS = new Set<ComplianceMonth>([
+  'JANEIRO',
+  'FEVEREIRO',
+  'MARÇO',
+  'ABRIL',
+  'MAIO',
+  'JUNHO',
+  'JULHO',
+  'AGOSTO',
+  'SETEMBRO',
+  'OUTUBRO',
+  'NOVEMBRO',
+  'DEZEMBRO',
+]);
+
+const VALID_COMPLIANCE_OPERATIONS = new Set<ComplianceOperation>([
+  'ENTREGA',
+  'PUXADA',
+  'FROTA LEVE',
+]);
+
+const VALID_COMPLIANCE_STATUS = new Set<ComplianceDocStatus>(['OK', 'NOK', 'N/A']);
+
+export const MAX_LEGALIZED_INLINE_BYTES = 850000;
 
 const utf8Encoder = new TextEncoder();
 
@@ -290,6 +322,11 @@ export interface LegalizedDocFirestoreDoc extends LegalizedDocumentRecord {
   createdAt?: Timestamp;
 }
 
+export interface ComplianceCheckFirestoreDoc extends ComplianceCheckRecord {
+  ownerId: string;
+  createdAt?: Timestamp;
+}
+
 export function sanitizeLegalizedDocForFirestore(
   item: LegalizedDocumentRecord,
   ownerId: string,
@@ -303,7 +340,7 @@ export function sanitizeLegalizedDocForFirestore(
       : '';
   const rawDataUrl = typeof item.fileDataUrl === 'string' ? item.fileDataUrl : '';
   const inlineDataUrl =
-    rawDataUrl.length <= 450000 ? rawDataUrl : '';
+    utf8Encoder.encode(rawDataUrl).length <= MAX_LEGALIZED_INLINE_BYTES ? rawDataUrl : '';
 
   return {
     id: safeId,
@@ -319,6 +356,37 @@ export function sanitizeLegalizedDocForFirestore(
     notes: clampStr(item.notes, 500),
     uploadedAt: clampStr(item.uploadedAt, 40),
     fileDataUrl: inlineDataUrl,
+    createdAt: createdAt ?? serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
+export function sanitizeComplianceCheckForFirestore(
+  item: ComplianceCheckRecord,
+  ownerId: string,
+  createdAt?: unknown
+): Record<string, unknown> {
+  const safeId = sanitizeFirestoreId(item.id);
+  const month = VALID_COMPLIANCE_MONTHS.has(item.month) ? item.month : 'JANEIRO';
+  const operation = VALID_COMPLIANCE_OPERATIONS.has(item.operation) ? item.operation : 'ENTREGA';
+  const normStatus = (val: unknown): ComplianceDocStatus =>
+    VALID_COMPLIANCE_STATUS.has(val as ComplianceDocStatus)
+      ? (val as ComplianceDocStatus)
+      : 'OK';
+
+  return {
+    id: safeId,
+    ownerId,
+    month,
+    operation,
+    checkDate: clampStr(item.checkDate, 40),
+    unit: clampStr(String(item.unit ?? '').trim(), 80, 'Guarabira') || 'Guarabira',
+    plate: clampStr(String(item.plate ?? '').trim().toUpperCase(), 20, 'SEM-PLACA') || 'SEM-PLACA',
+    crlvAno: normStatus(item.crlvAno),
+    cronotacografo: normStatus(item.cronotacografo),
+    antt: normStatus(item.antt),
+    contratoLocacao: normStatus(item.contratoLocacao),
+    notes: clampStr(item.notes, 500),
     createdAt: createdAt ?? serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -441,7 +509,7 @@ export function mapDocToLegalizedDoc(data: Record<string, unknown>): LegalizedDo
   const rawSub = data.subfolder as CrlvSubfolderName | undefined;
   const subfolder =
     folder === 'CRLV' && rawSub && VALID_CRLV_SUBFOLDERS.has(rawSub) ? rawSub : '';
-  const fileDataUrl = clampStr(data.fileDataUrl, 450000);
+  const fileDataUrl = clampStr(data.fileDataUrl, MAX_LEGALIZED_INLINE_BYTES);
   return {
     id: String(data.id ?? ''),
     ownerId: String(data.ownerId ?? ''),
@@ -456,6 +524,35 @@ export function mapDocToLegalizedDoc(data: Record<string, unknown>): LegalizedDo
     notes: clampStr(data.notes, 500),
     uploadedAt: clampStr(data.uploadedAt, 40),
     fileDataUrl: fileDataUrl || undefined,
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
+  };
+}
+
+export function mapDocToComplianceCheck(
+  data: Record<string, unknown>
+): ComplianceCheckFirestoreDoc {
+  const normStatus = (val: unknown): ComplianceDocStatus =>
+    VALID_COMPLIANCE_STATUS.has(val as ComplianceDocStatus)
+      ? (val as ComplianceDocStatus)
+      : 'OK';
+
+  return {
+    id: String(data.id ?? ''),
+    ownerId: String(data.ownerId ?? ''),
+    month: VALID_COMPLIANCE_MONTHS.has(data.month as ComplianceMonth)
+      ? (data.month as ComplianceMonth)
+      : 'JANEIRO',
+    operation: VALID_COMPLIANCE_OPERATIONS.has(data.operation as ComplianceOperation)
+      ? (data.operation as ComplianceOperation)
+      : 'ENTREGA',
+    checkDate: clampStr(data.checkDate, 40),
+    unit: clampStr(data.unit, 80, 'Guarabira') || 'Guarabira',
+    plate: clampStr(data.plate, 20),
+    crlvAno: normStatus(data.crlvAno),
+    cronotacografo: normStatus(data.cronotacografo),
+    antt: normStatus(data.antt),
+    contratoLocacao: normStatus(data.contratoLocacao),
+    notes: clampStr(data.notes, 500),
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt : undefined,
   };
 }
@@ -635,8 +732,6 @@ export async function importFleetToFirestore(
   existingVehicles: VehicleFirestoreDoc[],
   existingDocuments: DocumentFirestoreDoc[],
   existingEvidences: EvidenceFirestoreDoc[],
-  existingPhotoIds: Set<string>,
-  photoMapByPlate: Record<string, string>,
   lastUpdatedDisplay: string
 ): Promise<string> {
   let activePath = 'vehicles';
@@ -684,14 +779,11 @@ export async function importFleetToFirestore(
       if (!firstSelectedId) firstSelectedId = targetId;
 
       const targetOwnerId = match?.ownerId || ownerId;
-      const customDataPhoto = photoMapByPlate[key];
 
       const vehicleToSave: Vehicle = {
         ...imp,
         id: targetId,
-        photoUrl: customDataPhoto
-          ? resolveVehiclePhoto(imp.plate, imp.category)
-          : resolveVehiclePhoto(imp.plate, imp.category, match?.photoUrl || imp.photoUrl),
+        photoUrl: resolveVehiclePhoto(imp.plate, imp.category, match?.photoUrl || imp.photoUrl),
       };
 
       if (match) {
@@ -753,29 +845,6 @@ export async function importFleetToFirestore(
             sanitizeEvidenceForFirestore(mergedEv, targetOwnerId)
           )
         );
-      }
-
-      if (customDataPhoto && customDataPhoto.startsWith('data:')) {
-        if (mode === 'merge' && existingPhotoIds.has(targetId)) {
-          childGroup.push((batch) =>
-            batch.update(doc(db, 'vehiclePhotos', targetId), {
-              plate: clampStr(vehicleToSave.plate, 20),
-              dataUrl: clampStr(customDataPhoto, 450000),
-              updatedAt: serverTimestamp(),
-            })
-          );
-        } else {
-          childGroup.push((batch) =>
-            batch.set(doc(db, 'vehiclePhotos', targetId), {
-              vehicleId: targetId,
-              ownerId: targetOwnerId,
-              plate: clampStr(vehicleToSave.plate, 20),
-              dataUrl: clampStr(customDataPhoto, 450000),
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            })
-          );
-        }
       }
 
       if (childGroup.length > 0) {
@@ -850,7 +919,7 @@ export async function clearAllFleetInFirestore(
     }
 
     // Also ensure any orphan photo docs are cleaned up
-    const photoSnap = await getDocs(collection(db, 'vehiclePhotos'));
+    const photoSnap = await getDocs(buildCollectionQuery('vehiclePhotos'));
     const queuedVehicleIds = new Set(vehicleIds);
     photoSnap.forEach((docSnap) => {
       if (!queuedVehicleIds.has(docSnap.id)) {
@@ -1006,17 +1075,15 @@ export async function toggleEvidenceFieldInFirestore(
   }
 }
 
-export async function syncLocalFleetSnapshotToFirestore(
+export async function seedFleetToFirestore(
   vehicles: Vehicle[],
   documents: VehicleDocumentRecord[],
   evidences: VehicleEvidenceRecord[],
-  photoMapByPlate: Record<string, string>,
   ownerId: string,
   lastUpdatedDisplay: string
 ): Promise<void> {
   let activePath = 'vehicles';
   try {
-    const normPlate = (p: string) => (p || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
     const docsByVehicle = new Map<string, VehicleDocumentRecord[]>();
     const seenDocIds = new Set<string>();
     for (const d of documents) {
@@ -1038,7 +1105,6 @@ export async function syncLocalFleetSnapshotToFirestore(
     const vehicleOps: BatchAction[] = [];
     const docGroups: BatchAction[][] = [];
     const evidenceOps: BatchAction[] = [];
-    const photoOps: BatchAction[] = [];
     const seenVehicleIds = new Set<string>();
 
     for (const v of vehicles) {
@@ -1074,24 +1140,6 @@ export async function syncLocalFleetSnapshotToFirestore(
           )
         );
       }
-
-      const rawPhoto = typeof v.photoUrl === 'string' ? v.photoUrl : '';
-      const customPhoto =
-        photoMapByPlate[normPlate(v.plate)] ||
-        (rawPhoto.startsWith('data:') ? rawPhoto : '');
-      if (customPhoto && customPhoto.startsWith('data:')) {
-        const safePlate = clampStr(String(v.plate ?? '').trim().toUpperCase(), 20, 'SEM-PLACA') || 'SEM-PLACA';
-        photoOps.push((batch) =>
-          batch.set(doc(db, 'vehiclePhotos', safeVehId), {
-            vehicleId: safeVehId,
-            ownerId,
-            plate: safePlate,
-            dataUrl: clampStr(customPhoto, 450000),
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          })
-        );
-      }
     }
 
     if (vehicleOps.length > 0) {
@@ -1106,10 +1154,6 @@ export async function syncLocalFleetSnapshotToFirestore(
       activePath = 'evidences';
       await commitGroupedBatches([evidenceOps], { maxOpsPerBatch: 2, concurrency: 6 });
     }
-    if (photoOps.length > 0) {
-      activePath = 'vehiclePhotos';
-      await commitGroupedBatches([photoOps], { maxOpsPerBatch: 3, concurrency: 6 });
-    }
 
     await upsertFleetMeta(ownerId, lastUpdatedDisplay, true);
   } catch (error) {
@@ -1122,9 +1166,7 @@ export async function loadDefaultFleetToFirestore(
   lastUpdatedDisplay: string,
   existingVehicles: VehicleFirestoreDoc[] = [],
   existingDocuments: DocumentFirestoreDoc[] = [],
-  existingEvidences: EvidenceFirestoreDoc[] = [],
-  existingPhotoIds: Set<string> = new Set(),
-  photoMapByPlate: Record<string, string> = {}
+  existingEvidences: EvidenceFirestoreDoc[] = []
 ): Promise<void> {
   const vehiclesWithPhotos = INITIAL_VEHICLES.map((v) => ({
     ...v,
@@ -1138,24 +1180,24 @@ export async function loadDefaultFleetToFirestore(
       existingVehicles,
       existingDocuments,
       existingEvidences,
-      existingPhotoIds,
-      photoMapByPlate,
       lastUpdatedDisplay
     );
     return;
   }
-  await syncLocalFleetSnapshotToFirestore(
+  await seedFleetToFirestore(
     vehiclesWithPhotos,
     INITIAL_DOCUMENTS,
     INITIAL_EVIDENCES,
-    photoMapByPlate,
     ownerId,
     lastUpdatedDisplay
   );
 }
 
 export function buildCollectionQuery(collectionName: string) {
-  return collection(db, collectionName);
+  return query(
+    collection(db, collectionName),
+    where('ownerId', '==', SHARED_WORKSPACE_ID)
+  );
 }
 
 export async function addLegalizedDocInFirestore(
@@ -1209,6 +1251,72 @@ export async function deleteLegalizedDocInFirestore(
   const path = `legalizedDocs/${safeId}`;
   try {
     await deleteDoc(doc(db, 'legalizedDocs', safeId));
+    await upsertFleetMeta(ownerId, lastUpdatedDisplay, true);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export async function addComplianceChecksInFirestore(
+  items: ComplianceCheckRecord[],
+  ownerId: string,
+  lastUpdatedDisplay: string
+): Promise<void> {
+  if (items.length === 0) return;
+  const path = 'complianceChecks';
+  try {
+    const ops: BatchAction[] = items.map((item) => {
+      const safeId = sanitizeFirestoreId(item.id);
+      return (batch) =>
+        batch.set(
+          doc(db, 'complianceChecks', safeId),
+          sanitizeComplianceCheckForFirestore({ ...item, id: safeId }, ownerId)
+        );
+    });
+    await commitGroupedBatches([ops], { maxOpsPerBatch: 15, concurrency: 4 });
+    await upsertFleetMeta(ownerId, lastUpdatedDisplay, true);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function updateComplianceCheckInFirestore(
+  existingItem: ComplianceCheckFirestoreDoc,
+  patch: Partial<ComplianceCheckRecord>,
+  ownerId: string,
+  lastUpdatedDisplay: string
+): Promise<void> {
+  const safeId = sanitizeFirestoreId(existingItem.id);
+  const path = `complianceChecks/${safeId}`;
+  try {
+    const targetOwnerId = existingItem.ownerId || ownerId;
+    const merged: ComplianceCheckRecord = {
+      ...existingItem,
+      ...patch,
+      id: safeId,
+    };
+    const full = sanitizeComplianceCheckForFirestore(
+      merged,
+      targetOwnerId,
+      existingItem.createdAt
+    );
+    const { id: _id, ownerId: _ownerId, createdAt: _createdAt, ...updatable } = full;
+    await updateDoc(doc(db, 'complianceChecks', safeId), updatable);
+    await upsertFleetMeta(ownerId, lastUpdatedDisplay, true);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function deleteComplianceCheckInFirestore(
+  checkId: string,
+  ownerId: string,
+  lastUpdatedDisplay: string
+): Promise<void> {
+  const safeId = sanitizeFirestoreId(checkId);
+  const path = `complianceChecks/${safeId}`;
+  try {
+    await deleteDoc(doc(db, 'complianceChecks', safeId));
     await upsertFleetMeta(ownerId, lastUpdatedDisplay, true);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);

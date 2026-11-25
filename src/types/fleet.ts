@@ -174,10 +174,44 @@ export interface LegalizedDocumentRecord {
   fileDataUrl?: string;
 }
 
+export type ComplianceDocStatus = 'OK' | 'NOK' | 'N/A';
+
+export type ComplianceOperation = 'ENTREGA' | 'PUXADA' | 'FROTA LEVE';
+
+export type ComplianceMonth =
+  | 'JANEIRO'
+  | 'FEVEREIRO'
+  | 'MARÇO'
+  | 'ABRIL'
+  | 'MAIO'
+  | 'JUNHO'
+  | 'JULHO'
+  | 'AGOSTO'
+  | 'SETEMBRO'
+  | 'OUTUBRO'
+  | 'NOVEMBRO'
+  | 'DEZEMBRO';
+
+export interface ComplianceCheckRecord {
+  id: string;
+  month: ComplianceMonth;
+  operation: ComplianceOperation;
+  checkDate: string; // DD/MM/YYYY
+  unit: string;
+  plate: string;
+  crlvAno: ComplianceDocStatus;
+  cronotacografo: ComplianceDocStatus;
+  antt: ComplianceDocStatus;
+  contratoLocacao: ComplianceDocStatus;
+  notes: string;
+}
+
 export type NavSection =
+  | 'bloco-1'
   | 'documentos-legalizados'
   | 'processo-garantia'
   | 'laudo-vigilancia'
+  | 'check-conformidade'
   | 'visao-geral'
   | 'cadastro'
   | 'documentos'

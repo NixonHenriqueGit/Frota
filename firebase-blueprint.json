@@ -470,7 +470,7 @@
         "referenceDate": { "type": "string", "maxLength": 40 },
         "notes": { "type": "string", "maxLength": 500 },
         "uploadedAt": { "type": "string", "maxLength": 40 },
-        "fileDataUrl": { "type": "string", "maxLength": 450000 },
+        "fileDataUrl": { "type": "string", "maxLength": 850000 },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -488,6 +488,72 @@
         "notes",
         "uploadedAt",
         "fileDataUrl",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ComplianceCheck": {
+      "title": "ComplianceCheck",
+      "description": "Registro mensal de check de documentação fora de conformidade (1.1.5) por veículo.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "month": {
+          "type": "string",
+          "enum": [
+            "JANEIRO",
+            "FEVEREIRO",
+            "MARÇO",
+            "ABRIL",
+            "MAIO",
+            "JUNHO",
+            "JULHO",
+            "AGOSTO",
+            "SETEMBRO",
+            "OUTUBRO",
+            "NOVEMBRO",
+            "DEZEMBRO"
+          ]
+        },
+        "operation": {
+          "type": "string",
+          "enum": ["ENTREGA", "PUXADA", "FROTA LEVE"]
+        },
+        "checkDate": { "type": "string", "maxLength": 40 },
+        "unit": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "plate": { "type": "string", "minLength": 1, "maxLength": 20 },
+        "crlvAno": { "type": "string", "enum": ["OK", "NOK", "N/A"] },
+        "cronotacografo": { "type": "string", "enum": ["OK", "NOK", "N/A"] },
+        "antt": { "type": "string", "enum": ["OK", "NOK", "N/A"] },
+        "contratoLocacao": { "type": "string", "enum": ["OK", "NOK", "N/A"] },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "month",
+        "operation",
+        "checkDate",
+        "unit",
+        "plate",
+        "crlvAno",
+        "cronotacografo",
+        "antt",
+        "contratoLocacao",
+        "notes",
         "createdAt",
         "updatedAt"
       ]
@@ -524,7 +590,11 @@
     },
     "/legalizedDocs/{docId}": {
       "schema": { "$ref": "#/entities/LegalizedDoc" },
-      "description": "Arquivos e registros das pastas de 1.1.1 Documentos Legalizados."
+      "description": "Arquivos e registros das pastas de 1.1.1 Documentos Legalizados e 1.1.4 Laudo de Vigilância Sanitária."
+    },
+    "/complianceChecks/{checkId}": {
+      "schema": { "$ref": "#/entities/ComplianceCheck" },
+      "description": "Registros mensais do 1.1.5 Check Documentação Fora de Conformidade."
     }
   }
 }

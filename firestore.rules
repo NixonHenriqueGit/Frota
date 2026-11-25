@@ -222,7 +222,32 @@ service cloud.firestore {
         data.referenceDate is string && data.referenceDate.size() <= 40 &&
         data.notes is string && data.notes.size() <= 500 &&
         data.uploadedAt is string && data.uploadedAt.size() <= 40 &&
-        data.fileDataUrl is string && data.fileDataUrl.size() <= 450000 &&
+        data.fileDataUrl is string && data.fileDataUrl.size() <= 850000 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidComplianceCheck(data) {
+      return hasExactKeys(data, [
+          'id', 'ownerId', 'month', 'operation', 'checkDate', 'unit', 'plate',
+          'crlvAno', 'cronotacografo', 'antt', 'contratoLocacao', 'notes',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        isValidId(data.ownerId) &&
+        data.month in [
+          'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
+          'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'
+        ] &&
+        data.operation in ['ENTREGA', 'PUXADA', 'FROTA LEVE'] &&
+        data.checkDate is string && data.checkDate.size() <= 40 &&
+        data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 80 &&
+        data.plate is string && data.plate.size() >= 1 && data.plate.size() <= 20 &&
+        data.crlvAno in ['OK', 'NOK', 'N/A'] &&
+        data.cronotacografo in ['OK', 'NOK', 'N/A'] &&
+        data.antt in ['OK', 'NOK', 'N/A'] &&
+        data.contratoLocacao in ['OK', 'NOK', 'N/A'] &&
+        data.notes is string && data.notes.size() <= 500 &&
         data.createdAt is timestamp &&
         data.updatedAt is timestamp;
     }
@@ -240,9 +265,10 @@ service cloud.firestore {
 
     match /fleetMeta/{metaId} {
       allow get: if isValidId(metaId);
-      allow list: if existing().ownerId is string;
+      allow list: if existing().ownerId == 'pau-brasil-brejo';
       allow create: if isValidId(metaId) &&
         isValidFleetMeta(incoming()) &&
+        incoming().ownerId == 'pau-brasil-brejo' &&
         incoming().ownerId == metaId &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
@@ -252,14 +278,15 @@ service cloud.firestore {
         incoming().createdAt == existing().createdAt &&
         incoming().updatedAt == request.time &&
         incoming().diff(existing()).affectedKeys().hasOnly(['lastUpdatedDisplay', 'initialized', 'updatedAt']);
-      allow delete: if isValidId(metaId) && existing().ownerId is string;
+      allow delete: if isValidId(metaId) && existing().ownerId == 'pau-brasil-brejo';
     }
 
     match /vehicles/{vehicleId} {
       allow get: if isValidId(vehicleId);
-      allow list: if existing().id is string;
+      allow list: if existing().ownerId == 'pau-brasil-brejo';
       allow create: if isValidId(vehicleId) &&
         isValidVehicle(incoming()) &&
+        incoming().ownerId == 'pau-brasil-brejo' &&
         incoming().id == vehicleId &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
@@ -286,14 +313,15 @@ service cloud.firestore {
             'photoUrl', 'periodBucket', 'lastUpdated', 'updatedAt'
           ])
         );
-      allow delete: if isValidId(vehicleId) && existing().id is string;
+      allow delete: if isValidId(vehicleId) && existing().ownerId == 'pau-brasil-brejo';
     }
 
     match /vehiclePhotos/{vehicleId} {
       allow get: if isValidId(vehicleId);
-      allow list: if existing().vehicleId is string;
+      allow list: if existing().ownerId == 'pau-brasil-brejo';
       allow create: if isValidId(vehicleId) &&
         isValidVehiclePhoto(incoming()) &&
+        incoming().ownerId == 'pau-brasil-brejo' &&
         incoming().vehicleId == vehicleId &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time &&
@@ -306,14 +334,15 @@ service cloud.firestore {
         incoming().createdAt == existing().createdAt &&
         incoming().updatedAt == request.time &&
         incoming().diff(existing()).affectedKeys().hasOnly(['plate', 'dataUrl', 'updatedAt']);
-      allow delete: if isValidId(vehicleId) && existing().vehicleId is string;
+      allow delete: if isValidId(vehicleId) && existing().ownerId == 'pau-brasil-brejo';
     }
 
     match /documents/{docId} {
       allow get: if isValidId(docId);
-      allow list: if existing().id is string;
+      allow list: if existing().ownerId == 'pau-brasil-brejo';
       allow create: if isValidId(docId) &&
         isValidVehicleDocument(incoming()) &&
+        incoming().ownerId == 'pau-brasil-brejo' &&
         incoming().id == docId &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time &&
@@ -333,14 +362,15 @@ service cloud.firestore {
             'expiryDate', 'protocol', 'responsible', 'updatedAt'
           ])
         );
-      allow delete: if isValidId(docId) && existing().id is string;
+      allow delete: if isValidId(docId) && existing().ownerId == 'pau-brasil-brejo';
     }
 
     match /evidences/{vehicleId} {
       allow get: if isValidId(vehicleId);
-      allow list: if existing().vehicleId is string;
+      allow list: if existing().ownerId == 'pau-brasil-brejo';
       allow create: if isValidId(vehicleId) &&
         isValidVehicleEvidence(incoming()) &&
+        incoming().ownerId == 'pau-brasil-brejo' &&
         incoming().vehicleId == vehicleId &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time &&
@@ -361,14 +391,15 @@ service cloud.firestore {
             'crlvFile', 'cntFile', 'anttFile', 'updatedDate', 'updatedAt'
           ])
         );
-      allow delete: if isValidId(vehicleId) && existing().vehicleId is string;
+      allow delete: if isValidId(vehicleId) && existing().ownerId == 'pau-brasil-brejo';
     }
 
     match /legalizedDocs/{docId} {
       allow get: if isValidId(docId);
-      allow list: if existing().id is string;
+      allow list: if existing().ownerId == 'pau-brasil-brejo';
       allow create: if isValidId(docId) &&
         isValidLegalizedDoc(incoming()) &&
+        incoming().ownerId == 'pau-brasil-brejo' &&
         incoming().id == docId &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
@@ -383,7 +414,36 @@ service cloud.firestore {
           'expiryDate', 'referenceDate', 'notes', 'uploadedAt',
           'fileDataUrl', 'updatedAt'
         ]);
-      allow delete: if isValidId(docId) && existing().id is string;
+      allow delete: if isValidId(docId) && existing().ownerId == 'pau-brasil-brejo';
+    }
+
+    match /complianceChecks/{checkId} {
+      allow get: if isValidId(checkId);
+      allow list: if existing().ownerId == 'pau-brasil-brejo';
+      allow create: if isValidId(checkId) &&
+        isValidComplianceCheck(incoming()) &&
+        incoming().ownerId == 'pau-brasil-brejo' &&
+        incoming().id == checkId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(checkId) &&
+        isValidComplianceCheck(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly(['crlvAno', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['cronotacografo', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['antt', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['contratoLocacao', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'month', 'operation', 'checkDate', 'unit', 'plate',
+            'crlvAno', 'cronotacografo', 'antt', 'contratoLocacao',
+            'notes', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(checkId) && existing().ownerId == 'pau-brasil-brejo';
     }
   }
 }

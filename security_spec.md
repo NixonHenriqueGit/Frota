@@ -3,7 +3,7 @@
 ## 1. Invariantes de Dados
 1. **Identidade e Verificação**: Todas as operações de leitura e escrita exigem usuário autenticado com `request.auth.token.email_verified == true`.
 2. **Isolamento de Propriedade e Admin**:
-   - Cada documento operacional (`vehicles`, `documents`, `evidences`, `vehiclePhotos`, `fleetMeta`) possui um campo imutável `ownerId` vinculado ao `request.auth.uid` no momento da criação.
+   - Cada documento operacional (`vehicles`, `documents`, `evidences`, `vehiclePhotos`, `fleetMeta`, `legalizedDocs`, `complianceChecks`) possui um campo imutável `ownerId`.
    - Consultas (`allow list`) avaliam diretamente `resource.data.ownerId == request.auth.uid || isBootstrappedAdmin()`, sem chamadas `get()` ou `exists()`.
    - Perfis privados (`/users/{userId}`) nunca permitem `list` e restringem `get`/`create`/`update` ao próprio dono ou administrador.
    - A coleção `/admins/{userId}` nunca pode ser escrita por usuários comuns; somente o administrador inicial verificado (`paubrasilabastecimento@gmail.com`) pode criar ou remover administradores.
