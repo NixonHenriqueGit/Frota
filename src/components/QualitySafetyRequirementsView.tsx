@@ -27,7 +27,12 @@ import {
 } from '../data/safetyCheckSeed';
 import { PLATFORM_CARD_GRID_CLASS, PlatformCard } from './PlatformCard';
 import { BlitzWorkspace } from './BlitzWorkspace';
+import { CaminhoesCheckWorkspace } from './CaminhoesCheckWorkspace';
+import { PuxadaCheckWorkspace } from './PuxadaCheckWorkspace';
+import { ClusterizacaoWorkspace } from './ClusterizacaoWorkspace';
 import { BLITZ_CATALOG } from '../data/blitzCatalog';
+import { CAMINHOES_SEED_ROWS } from '../data/caminhoesCheckSeed';
+import { PUXADA_SEED_ROWS } from '../data/puxadaCheckSeed';
 
 type SheetTab = SafetyCheckOperation;
 
@@ -36,6 +41,8 @@ interface QualitySafetyRequirementsViewProps {
   blitzRecords: LegalizedDocumentRecord[];
   blitzPuxadaRecords: LegalizedDocumentRecord[];
   blitzEmpilhadeiraRecords: LegalizedDocumentRecord[];
+  caminhoesRecords: LegalizedDocumentRecord[];
+  puxadaCheckRecords: LegalizedDocumentRecord[];
   vehicles: Vehicle[];
   onAddRecords: (items: LegalizedDocumentRecord[]) => void;
   onUpdateRecord: (id: string, patch: Partial<LegalizedDocumentRecord>) => void;
@@ -102,6 +109,8 @@ export const QualitySafetyRequirementsView: React.FC<
   blitzRecords,
   blitzPuxadaRecords,
   blitzEmpilhadeiraRecords,
+  caminhoesRecords,
+  puxadaCheckRecords,
   vehicles,
   onAddRecords,
   onUpdateRecord,
@@ -112,6 +121,9 @@ export const QualitySafetyRequirementsView: React.FC<
     | 'blitz-entrega'
     | 'blitz-puxada'
     | 'blitz-empilhadeira'
+    | 'caminhoes'
+    | 'puxada-check'
+    | 'clusterizacao'
     | null
   >(null);
   const [activeTab, setActiveTab] = useState<SheetTab>('ENTREGA');
@@ -634,6 +646,27 @@ export const QualitySafetyRequirementsView: React.FC<
                 subtitle="Checklist rápido de 36 itens (Segurança, Torre/Garfos, Sinalização, Pneus/Rodas, Visual e Elétrica)"
                 onClick={() => setOpenedSection('blitz-empilhadeira')}
               />
+              <PlatformCard
+                kicker="1.2.3.5 · CAMINHÕES"
+                countLabel={`${String(caminhoesRecords.length > 0 ? caminhoesRecords.length : CAMINHOES_SEED_ROWS.length).padStart(2, '0')} checks`}
+                title="CAMINHÕES"
+                subtitle="Check mensal de 86 itens (Cabine, Frontal, Baú, Traseira, Pneus e Itens Extras) com % de Conformidades"
+                onClick={() => setOpenedSection('caminhoes')}
+              />
+              <PlatformCard
+                kicker="1.2.3.6 · PUXADA"
+                countLabel={`${String(puxadaCheckRecords.length > 0 ? puxadaCheckRecords.length : PUXADA_SEED_ROWS.length).padStart(2, '0')} checks`}
+                title="PUXADA"
+                subtitle="Check mensal de 73 itens (Cabine, Frontal, Sider, Plataforma Elevatória, Traseira, Pneus e Itens Extras)"
+                onClick={() => setOpenedSection('puxada-check')}
+              />
+              <PlatformCard
+                kicker="1.2.3.7 · CLUSTERIZAÇÃO"
+                countLabel="03 modais"
+                title="CLUSTERIZAÇÃO"
+                subtitle="Critérios oficiais de classificação e gravidade (Caminhões, Puxada e Empilhadeira)"
+                onClick={() => setOpenedSection('clusterizacao')}
+              />
             </div>
           </section>
         </>
@@ -673,6 +706,28 @@ export const QualitySafetyRequirementsView: React.FC<
           onDeleteRecord={onDeleteRecord}
           onSyncPercentToSafetyCheck={handleSyncPercentToSafetyCheck}
         />
+      ) : openedSection === 'caminhoes' ? (
+        <CaminhoesCheckWorkspace
+          records={caminhoesRecords}
+          vehicles={vehicles}
+          onBack={() => setOpenedSection(null)}
+          onAddRecords={onAddRecords}
+          onUpdateRecord={onUpdateRecord}
+          onDeleteRecord={onDeleteRecord}
+          onSyncPercentToSafetyCheck={handleSyncPercentToSafetyCheck}
+        />
+      ) : openedSection === 'puxada-check' ? (
+        <PuxadaCheckWorkspace
+          records={puxadaCheckRecords}
+          vehicles={vehicles}
+          onBack={() => setOpenedSection(null)}
+          onAddRecords={onAddRecords}
+          onUpdateRecord={onUpdateRecord}
+          onDeleteRecord={onDeleteRecord}
+          onSyncPercentToSafetyCheck={handleSyncPercentToSafetyCheck}
+        />
+      ) : openedSection === 'clusterizacao' ? (
+        <ClusterizacaoWorkspace onBack={() => setOpenedSection(null)} />
       ) : (
         <section className="flex-1 flex flex-col rounded-xl bg-white border border-slate-200/90 shadow-[0_3px_14px_rgba(15,23,42,0.05)] overflow-hidden">
           {/* Navy Header Bar matching screenshot */}

@@ -305,7 +305,9 @@ export default function App() {
           d.folder !== 'CHECK DE SEGURANÇA' &&
           d.folder !== 'BLITZ DE ENTREGA' &&
           d.folder !== 'BLITZ DE PUXADA' &&
-          d.folder !== 'BLITZ EMPILHADEIRA'
+          d.folder !== 'BLITZ EMPILHADEIRA' &&
+          d.folder !== 'CAMINHÕES' &&
+          d.folder !== 'PUXADA'
       ),
     [legalizedDocs]
   );
@@ -342,6 +344,16 @@ export default function App() {
 
   const blitzEmpilhadeiraDocs = useMemo(
     () => legalizedDocs.filter((d) => d.folder === 'BLITZ EMPILHADEIRA'),
+    [legalizedDocs]
+  );
+
+  const caminhoesDocs = useMemo(
+    () => legalizedDocs.filter((d) => d.folder === 'CAMINHÕES'),
+    [legalizedDocs]
+  );
+
+  const puxadaCheckDocs = useMemo(
+    () => legalizedDocs.filter((d) => d.folder === 'PUXADA'),
     [legalizedDocs]
   );
 
@@ -740,6 +752,8 @@ export default function App() {
                   blitzRecords={blitzEntregaDocs}
                   blitzPuxadaRecords={blitzPuxadaDocs}
                   blitzEmpilhadeiraRecords={blitzEmpilhadeiraDocs}
+                  caminhoesRecords={caminhoesDocs}
+                  puxadaCheckRecords={puxadaCheckDocs}
                   vehicles={vehicles}
                   onAddRecords={handleAddLegalizedDocs}
                   onUpdateRecord={handleUpdateLegalizedDoc}

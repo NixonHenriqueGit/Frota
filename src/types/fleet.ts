@@ -161,7 +161,9 @@ export type LegalizedFolderName =
   | 'CHECK DE SEGURANÇA'
   | 'BLITZ DE ENTREGA'
   | 'BLITZ DE PUXADA'
-  | 'BLITZ EMPILHADEIRA';
+  | 'BLITZ EMPILHADEIRA'
+  | 'CAMINHÕES'
+  | 'PUXADA';
 
 export type BlitzKind = 'entrega' | 'puxada' | 'empilhadeira';
 
@@ -207,6 +209,61 @@ export interface BlitzInspectionPayload {
 }
 
 export type BlitzEntregaPayload = BlitzInspectionPayload;
+
+export type CaminhoesZoneKey =
+  | 'cabine'
+  | 'frontal'
+  | 'bau'
+  | 'traseira'
+  | 'pneus'
+  | 'extras';
+
+export interface CaminhoesCheckColumnDef {
+  id: string;
+  zone: CaminhoesZoneKey;
+  tipo: string;
+  item: string;
+  classificacao: string;
+  gravidade: string;
+}
+
+export interface CaminhoesCheckPayload {
+  id: string;
+  mes: ComplianceMonth;
+  placa: string;
+  data: string;
+  responsavel: string;
+  percentual: number;
+  items: Record<string, BlitzItemStatus>;
+}
+
+export type PuxadaZoneKey =
+  | 'cabine'
+  | 'frontal'
+  | 'sider'
+  | 'plataforma'
+  | 'traseira'
+  | 'pneus'
+  | 'extras';
+
+export interface PuxadaCheckColumnDef {
+  id: string;
+  zone: PuxadaZoneKey;
+  tipo: string;
+  item: string;
+  classificacao: string;
+  gravidade: string;
+}
+
+export interface PuxadaCheckPayload {
+  id: string;
+  mes: ComplianceMonth;
+  placa: string;
+  data: string;
+  responsavel: string;
+  percentual: number;
+  items: Record<string, BlitzItemStatus>;
+}
 
 export type SafetyCheckOperation = 'ENTREGA' | 'PUXADA' | 'ARMAZÉM';
 

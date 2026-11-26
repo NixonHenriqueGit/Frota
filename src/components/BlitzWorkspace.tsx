@@ -6,9 +6,11 @@ import {
   ArrowRight,
   CheckCheck,
   CheckCircle2,
+  Clock,
   Download,
   FileSpreadsheet,
   Pencil,
+  Play,
   RotateCcw,
   Save,
   Search,
@@ -143,7 +145,11 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
     createAllOkMap(config)
   );
 
-  const [zoneFilter, setZoneFilter] = useState<'ALL' | 'NOK_ONLY' | BlitzZoneKey>('ALL');
+  const [activeStageKey, setActiveStageKey] = useState<BlitzZoneKey | null>(null);
+  const [completedZones, setCompletedZones] = useState<Record<string, boolean>>({});
+  const [showNokOnly, setShowNokOnly] = useState(false);
+  const [manualPlateMode, setManualPlateMode] = useState(false);
+  const [showExtraDetails, setShowExtraDetails] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   // Table filter state
@@ -197,7 +203,7 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
       }
     }
 
-    return list;
+    return list.sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [config.safetyOperation, vehicles]);
 
   const inspectedInMonthMap = useMemo(() => {
@@ -253,7 +259,10 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
     setDataStr(nowDateBr());
     setHoraStr(nowTimeBr());
     setItemsMap(createAllOkMap(config));
-    setZoneFilter('ALL');
+    setActiveStageKey(null);
+    setCompletedZones({});
+    setShowNokOnly(false);
+    setManualPlateMode(false);
   };
 
   const handleSave = (advanceToNext: boolean) => {
@@ -338,7 +347,9 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
     setNome(entry.nome);
     setCpf(entry.cpf);
     setItemsMap({ ...createAllOkMap(config), ...entry.items });
-    setZoneFilter('ALL');
+    setActiveStageKey(config.zones[0]?.key ?? null);
+    setCompletedZones({});
+    setShowNokOnly(false);
     setViewMode('form');
   };
 
@@ -411,10 +422,66 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
     });
   }, [parsedEntries, tableSearch, tableMonthFilter]);
 
-  const visibleZones = useMemo(() => {
-    if (zoneFilter === 'ALL' || zoneFilter === 'NOK_ONLY') return config.zones;
-    return config.zones.filter((z) => z.key === zoneFilter);
-  }, [config.zones, zoneFilter]);
+  const activeStageIndex = useMemo(
+    () => config.zones.findIndex((z) => z.key === activeStageKey),
+    [config.zones, activeStageKey]
+  );
+
+  const completedStagesCount = useMemo(
+    () => config.zones.filter((z) => completedZones[z.key]).length,
+    [config.zones, completedZones]
+  );
+
+  const pendingPlates = useMemo(
+    () =>
+      operationPlates.filter((p) => {
+        const pNorm = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        return !inspectedInMonthMap.has(pNorm);
+      }),
+    [operationPlates, inspectedInMonthMap]
+  );
+
+  const completedPlates = useMemo(
+    () =>
+      operationPlates.filter((p) => {
+        const pNorm = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        return inspectedInMonthMap.has(pNorm);
+      }),
+    [operationPlates, inspectedInMonthMap]
+  );
+
+  const handleSelectNextPending = () => {
+    const currentNorm = placa.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const next =
+      pendingPlates.find(
+        (p) => p.replace(/[^A-Z0-9]/gi, '').toUpperCase() !== currentNorm
+      ) ?? pendingPlates[0];
+    if (next) {
+      setManualPlateMode(false);
+      setPlaca(next);
+    } else {
+      showNotice(`Todos os ${operationPlates.length} veículos já foram verificados em ${mes}.`);
+    }
+  };
+
+  const handleStartStage = (zoneKey: BlitzZoneKey) => {
+    setShowNokOnly(false);
+    setActiveStageKey(zoneKey);
+  };
+
+  const handleCompleteStageAndAdvance = () => {
+    if (!activeStageKey) return;
+    setCompletedZones((prev) => ({ ...prev, [activeStageKey]: true }));
+    const idx = config.zones.findIndex((z) => z.key === activeStageKey);
+    if (idx >= 0 && idx + 1 < config.zones.length) {
+      setActiveStageKey(config.zones[idx + 1].key);
+    } else {
+      setActiveStageKey(null);
+      showNotice(
+        `Todas as ${config.zones.length} etapas concluídas (${liveStats.percent}%). Clique em "Salvar Blitz" para finalizar.`
+      );
+    }
+  };
 
   return (
     <section className="flex-1 flex flex-col rounded-xl bg-white border border-slate-200/90 shadow-[0_3px_14px_rgba(15,23,42,0.05)] overflow-hidden">
@@ -505,82 +572,75 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
 
       {viewMode === 'form' ? (
         <div className="flex-1 flex flex-col">
-          {/* Step 1: 1-Click Plate Picker + Header Metadata */}
+          {/* Step 1: Organized Vehicle Selector + Clean Metadata */}
           <div className="p-4 bg-[#F7FAFE] border-b border-slate-200 space-y-3">
-            {/* Fast Plate Chips */}
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#06295A]">
-                  1. Selecione a placa com 1 clique ({mes})
-                </span>
-                <span className="font-mono-tabular text-[11px] font-semibold text-slate-500">
-                  {inspectedInMonthMap.size}/{operationPlates.length} feitas em{' '}
-                  {mes.toLowerCase()}
-                </span>
+            {/* Primary Row: Vehicle Select, Month, Next Pending, Collapsible Fleet List */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+              <div className="md:col-span-5">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wide text-[#06295A]">
+                    1. {config.plateLabel} *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setManualPlateMode((prev) => !prev)}
+                    className="text-[10.5px] font-bold text-[#1256BA] hover:underline cursor-pointer"
+                  >
+                    {manualPlateMode ? 'Escolher da lista' : 'Digitar outra placa'}
+                  </button>
+                </div>
+
+                {manualPlateMode ? (
+                  <input
+                    type="text"
+                    value={placa}
+                    onChange={(e) => setPlaca(e.target.value.toUpperCase())}
+                    placeholder={config.platePlaceholder}
+                    className="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-extrabold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
+                  />
+                ) : (
+                  <select
+                    value={operationPlates.includes(placa) ? placa : ''}
+                    onChange={(e) => setPlaca(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-bold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8] cursor-pointer"
+                  >
+                    <option value="">
+                      Selecione um veículo ({pendingPlates.length} pendentes)...
+                    </option>
+                    {pendingPlates.length > 0 && (
+                      <optgroup label={`Pendentes em ${mes} (${pendingPlates.length})`}>
+                        {pendingPlates.map((p) => (
+                          <option key={p} value={p}>
+                            {p} — Pendente
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {completedPlates.length > 0 && (
+                      <optgroup label={`Já verificados em ${mes} (${completedPlates.length})`}>
+                        {completedPlates.map((p) => {
+                          const pNorm = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                          const done = inspectedInMonthMap.get(pNorm);
+                          return (
+                            <option key={p} value={p}>
+                              {p} — ✓ {done?.percentual ?? 100}%
+                            </option>
+                          );
+                        })}
+                      </optgroup>
+                    )}
+                  </select>
+                )}
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
-                {operationPlates.map((p) => {
-                  const pNorm = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-                  const done = inspectedInMonthMap.get(pNorm);
-                  const isCurrent =
-                    placa.replace(/[^A-Z0-9]/gi, '').toUpperCase() === pNorm;
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setPlaca(p)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border font-mono-tabular text-xs font-bold transition-all cursor-pointer ${
-                        isCurrent
-                          ? 'bg-[#0B3C7D] text-white border-[#0B3C7D] shadow-sm'
-                          : done
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                            : 'bg-white text-[#06295A] border-slate-300 hover:border-[#1565D8] hover:bg-blue-50/50'
-                      }`}
-                    >
-                      <span>{p}</span>
-                      {done && (
-                        <span
-                          className={`text-[10px] ${
-                            isCurrent ? 'text-blue-200' : 'text-emerald-700'
-                          }`}
-                        >
-                          {done.percentual}%
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Compact Metadata Row */}
-            <div
-              className={`grid grid-cols-2 sm:grid-cols-4 ${
-                config.hasMapa ? 'lg:grid-cols-8' : 'lg:grid-cols-7'
-              } gap-2.5 pt-1`}
-            >
-              <div>
-                <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
-                  {config.plateLabel}
-                </label>
-                <input
-                  type="text"
-                  value={placa}
-                  onChange={(e) => setPlaca(e.target.value.toUpperCase())}
-                  placeholder={config.platePlaceholder}
-                  className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-extrabold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
-                  MÊS *
+              <div className="md:col-span-3">
+                <label className="block text-[11px] font-extrabold uppercase tracking-wide text-[#06295A] mb-1">
+                  Mês *
                 </label>
                 <select
                   value={mes}
                   onChange={(e) => setMes(e.target.value as ComplianceMonth)}
-                  className="w-full h-8 px-2 rounded-lg bg-white border border-slate-300 text-xs font-bold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
+                  className="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 text-xs font-bold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8] cursor-pointer"
                 >
                   {BLITZ_MONTHS.map((m) => (
                     <option key={m.month} value={m.month}>
@@ -590,132 +650,139 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
-                  Criador
-                </label>
-                <input
-                  type="text"
-                  value={criador}
-                  onChange={(e) => setCriador(e.target.value)}
-                  placeholder="Seu nome"
-                  className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
-                />
+              <div className="md:col-span-4 flex items-center">
+                <button
+                  type="button"
+                  onClick={handleSelectNextPending}
+                  className="w-full h-9 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg bg-[#0B3C7D] hover:bg-[#1256BA] text-white text-xs font-bold transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <span>Próximo Pendente</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
-                  Data
-                </label>
-                <input
-                  type="text"
-                  value={dataStr}
-                  onChange={(e) => setDataStr(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
-                  Hora
-                </label>
-                <input
-                  type="text"
-                  value={horaStr}
-                  onChange={(e) => setHoraStr(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
-                />
-              </div>
-
-              {config.hasMapa && (
+            {/* Clean Metadata Row + Optional Details Toggle */}
+            <div className="pt-2 border-t border-slate-200/80 space-y-2.5">
+              <div
+                className={`grid grid-cols-1 sm:grid-cols-2 ${
+                  config.hasMapa ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
+                } gap-3 items-end`}
+              >
                 <div>
                   <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
-                    Mapa
+                    Criador / Inspetor
                   </label>
                   <input
                     type="text"
-                    value={mapa}
-                    onChange={(e) => setMapa(e.target.value)}
-                    placeholder="Nº Mapa"
-                    className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
+                    value={criador}
+                    onChange={(e) => setCriador(e.target.value)}
+                    placeholder="Seu nome"
+                    className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
+                    {config.driverLabel}
+                  </label>
+                  <input
+                    type="text"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    placeholder={config.driverPlaceholder}
+                    className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
+                  />
+                </div>
+
+                {config.hasMapa && (
+                  <div>
+                    <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
+                      Mapa
+                    </label>
+                    <input
+                      type="text"
+                      value={mapa}
+                      onChange={(e) => setMapa(e.target.value)}
+                      placeholder="Nº Mapa"
+                      className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-2 h-8 px-3 rounded-lg bg-white border border-slate-200 text-xs">
+                  <span className="inline-flex items-center gap-1.5 font-mono-tabular text-slate-600 font-semibold truncate">
+                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>
+                      {dataStr} · {horaStr}
+                      {cpf ? ` · CPF` : ''}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowExtraDetails((prev) => !prev)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#1256BA] hover:underline cursor-pointer shrink-0"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    <span>{showExtraDetails ? 'Ocultar' : 'Data/CPF'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {showExtraDetails && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-lg bg-white border border-slate-200">
+                  <div>
+                    <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
+                      Data
+                    </label>
+                    <input
+                      type="text"
+                      value={dataStr}
+                      onChange={(e) => setDataStr(e.target.value)}
+                      className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
+                      Hora
+                    </label>
+                    <input
+                      type="text"
+                      value={horaStr}
+                      onChange={(e) => setHoraStr(e.target.value)}
+                      className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
+                      CPF
+                    </label>
+                    <input
+                      type="text"
+                      value={cpf}
+                      onChange={(e) => setCpf(e.target.value)}
+                      placeholder="000.000.000-00"
+                      className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
+                    />
+                  </div>
+                </div>
               )}
-
-              <div>
-                <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
-                  {config.driverLabel}
-                </label>
-                <input
-                  type="text"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder={config.driverPlaceholder}
-                  className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
-                  CPF
-                </label>
-                <input
-                  type="text"
-                  value={cpf}
-                  onChange={(e) => setCpf(e.target.value)}
-                  placeholder="000.000.000-00"
-                  className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
-                />
-              </div>
             </div>
           </div>
 
-          {/* Step 2: Fast Zone Switcher + Global "Tudo OK" Action */}
+          {/* Step 2: Top Quick Actions Bar */}
           <div className="px-4 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex flex-wrap items-center gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-extrabold text-[#06295A]">
+                Etapas do Check ({completedStagesCount}/{config.zones.length} concluídas)
+              </span>
               <button
                 type="button"
-                onClick={() => setZoneFilter('ALL')}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
-                  zoneFilter === 'ALL'
-                    ? 'bg-[#0B3C7D] text-white'
-                    : 'bg-slate-100 text-slate-600 hover:text-[#06295A]'
-                }`}
-              >
-                Todas ({config.items.length})
-              </button>
-              {config.zones.map((z) => {
-                const count = config.items.filter((i) => i.zone === z.key).length;
-                const nokInZone = config.items.filter(
-                  (i) => i.zone === z.key && itemsMap[i.id] === 'NOK'
-                ).length;
-                return (
-                  <button
-                    key={z.key}
-                    type="button"
-                    onClick={() => setZoneFilter(z.key)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
-                      zoneFilter === z.key
-                        ? 'bg-[#0B3C7D] text-white'
-                        : 'bg-slate-100 text-slate-600 hover:text-[#06295A]'
-                    }`}
-                  >
-                    <span>
-                      {z.shortLabel} ({count})
-                    </span>
-                    {nokInZone > 0 && (
-                      <span className="px-1 rounded bg-red-600 text-white text-[10px]">
-                        {nokInZone}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => setZoneFilter('NOK_ONLY')}
+                onClick={() => setShowNokOnly((prev) => !prev)}
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
-                  zoneFilter === 'NOK_ONLY'
+                  showNokOnly
                     ? 'bg-red-600 text-white'
                     : 'bg-red-50 text-red-700 hover:bg-red-100'
                 }`}
@@ -746,99 +813,302 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* Step 3: Checklist Items Grouped by Physical Zone */}
-          <div className="flex-1 p-4 space-y-5 bg-white">
-            {visibleZones.map((zone) => {
-              const zoneItems = config.items.filter((item) => {
-                if (item.zone !== zone.key) return false;
-                if (zoneFilter === 'NOK_ONLY') return itemsMap[item.id] === 'NOK';
-                return true;
-              });
-              if (zoneItems.length === 0) return null;
+          {/* Step 3: Stage-by-Stage Guided Inspection (Left Stage Buttons + Right Active Check Items) */}
+          <div className="flex-1 p-4 bg-[#F6F9FE] grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            {/* Left Column: 6 Stages with "Iniciar" button beside each stage */}
+            <aside className="lg:col-span-4 rounded-xl bg-white border border-slate-200/90 shadow-[0_2px_8px_rgba(6,41,90,0.04)] overflow-hidden">
+              <div className="px-3.5 py-2.5 bg-[#06295A] text-white flex items-center justify-between gap-2">
+                <span className="font-display text-xs font-bold uppercase tracking-wide">
+                  Etapas da Inspeção
+                </span>
+                <span className="font-mono-tabular text-[11px] font-bold text-blue-200">
+                  {completedStagesCount}/{config.zones.length}
+                </span>
+              </div>
 
-              const zoneNok = zoneItems.filter((i) => itemsMap[i.id] === 'NOK').length;
+              <div className="divide-y divide-slate-100">
+                {config.zones.map((zone, idx) => {
+                  const zoneItems = config.items.filter((i) => i.zone === zone.key);
+                  const nokCount = zoneItems.filter((i) => itemsMap[i.id] === 'NOK').length;
+                  const isActive = !showNokOnly && activeStageKey === zone.key;
+                  const isDone = Boolean(completedZones[zone.key]);
+                  const isFirstSuggested =
+                    !activeStageKey && !showNokOnly && !isDone && idx === 0;
 
-              return (
-                <div key={zone.key} className="space-y-2">
-                  <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-display text-xs font-extrabold uppercase tracking-wider text-[#06295A]">
-                        {zone.label}
-                      </h3>
-                      <span className="font-mono-tabular text-[11px] font-semibold text-slate-500">
-                        ({zoneItems.length} itens{zoneNok > 0 ? ` · ${zoneNok} NOK` : ''})
-                      </span>
+                  return (
+                    <div
+                      key={zone.key}
+                      className={`px-3.5 py-2.5 flex items-center justify-between gap-2.5 transition-colors ${
+                        isActive
+                          ? 'bg-[#EEF4FC] ring-1 ring-inset ring-[#1565D8]/40'
+                          : isDone
+                            ? 'bg-emerald-50/40'
+                            : 'bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-extrabold text-[#06295A] truncate">
+                            {zone.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+                          <span className="font-mono-tabular text-slate-500 font-semibold">
+                            {zoneItems.length} itens
+                          </span>
+                          {nokCount > 0 && (
+                            <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-bold text-[10px]">
+                              {nokCount} NOK
+                            </span>
+                          )}
+                          {isDone && (
+                            <span className="inline-flex items-center gap-0.5 text-emerald-700 font-bold text-[10.5px]">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Concluída
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleStartStage(zone.key)}
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                          isActive
+                            ? 'bg-[#0B3C7D] text-white shadow-xs'
+                            : isDone
+                              ? 'bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                              : isFirstSuggested
+                                ? 'bg-[#1256BA] hover:bg-[#0B3C7D] text-white shadow-xs'
+                                : 'bg-white border border-[#1256BA]/40 text-[#0B3C7D] hover:bg-blue-50'
+                        }`}
+                      >
+                        <Play className="w-3 h-3 fill-current" />
+                        <span>
+                          {isActive ? 'Em check' : isDone ? 'Revisar' : 'Iniciar'}
+                        </span>
+                      </button>
                     </div>
+                  );
+                })}
+              </div>
+            </aside>
 
+            {/* Right Column: Active Stage Items OR NOK Review OR Start Prompt */}
+            <div className="lg:col-span-8 rounded-xl bg-white border border-slate-200/90 shadow-[0_2px_8px_rgba(6,41,90,0.04)] overflow-hidden">
+              {showNokOnly ? (
+                <div className="p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200">
+                    <h3 className="font-display text-xs font-extrabold uppercase tracking-wider text-red-700">
+                      Itens Marcados como NOK ({liveStats.nokCount})
+                    </h3>
                     <button
                       type="button"
-                      onClick={() => markZoneOk(zone.key)}
-                      className="text-[11px] font-bold text-[#1256BA] hover:text-[#06295A] cursor-pointer"
+                      onClick={() => {
+                        setShowNokOnly(false);
+                        if (!activeStageKey && config.zones[0]) {
+                          setActiveStageKey(config.zones[0].key);
+                        }
+                      }}
+                      className="text-xs font-bold text-[#1256BA] hover:underline cursor-pointer"
                     >
-                      Marcar seção OK
+                      Voltar para etapas
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
-                    {zoneItems.map((item) => {
-                      const status = itemsMap[item.id] ?? 'OK';
-                      return (
-                        <div
-                          key={item.id}
-                          className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-colors ${
-                            status === 'NOK'
-                              ? 'bg-red-50/70 border-red-300'
-                              : status === 'NA'
-                                ? 'bg-slate-50 border-slate-200'
-                                : 'bg-white border-slate-200/90 hover:border-slate-300'
-                          }`}
-                        >
-                          <span
-                            className={`text-xs font-semibold leading-snug ${
-                              status === 'NOK' ? 'text-red-900 font-bold' : 'text-[#06295A]'
-                            }`}
+                  {liveStats.nokCount === 0 ? (
+                    <div className="p-8 text-center border border-dashed border-emerald-200 rounded-xl bg-emerald-50/40">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto mb-1.5" />
+                      <p className="text-xs font-bold text-[#06295A]">
+                        Nenhum item com NOK nesta blitz ({liveStats.percent}% de conformidade).
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {config.items
+                        .filter((item) => itemsMap[item.id] === 'NOK')
+                        .map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border bg-red-50/70 border-red-300"
                           >
-                            {item.label}
-                          </span>
-
-                          <div className="inline-flex items-center gap-1 shrink-0">
-                            {(['OK', 'NOK', 'NA'] as BlitzItemStatus[]).map((opt) => {
-                              const active = status === opt;
-                              const btnClass = active
-                                ? opt === 'OK'
-                                  ? 'bg-emerald-600 text-white border-emerald-600'
-                                  : opt === 'NOK'
-                                    ? 'bg-red-600 text-white border-red-600'
-                                    : 'bg-slate-600 text-white border-slate-600'
-                                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100';
-                              return (
-                                <button
-                                  key={opt}
-                                  type="button"
-                                  onClick={() => setItemStatus(item.id, opt)}
-                                  className={`px-2 py-1 rounded border text-[10.5px] font-extrabold tracking-wide transition-colors cursor-pointer ${btnClass}`}
-                                >
-                                  {opt === 'NA' ? 'N/A' : opt}
-                                </button>
-                              );
-                            })}
+                            <span className="text-xs font-bold text-red-900 leading-snug">
+                              {item.label}
+                            </span>
+                            <div className="inline-flex items-center gap-1 shrink-0">
+                              {(['OK', 'NOK', 'NA'] as BlitzItemStatus[]).map((opt) => {
+                                const active = itemsMap[item.id] === opt;
+                                return (
+                                  <button
+                                    key={opt}
+                                    type="button"
+                                    onClick={() => setItemStatus(item.id, opt)}
+                                    className={`px-2 py-1 rounded border text-[10.5px] font-extrabold cursor-pointer ${
+                                      active
+                                        ? opt === 'OK'
+                                          ? 'bg-emerald-600 text-white border-emerald-600'
+                                          : opt === 'NOK'
+                                            ? 'bg-red-600 text-white border-red-600'
+                                            : 'bg-slate-600 text-white border-slate-600'
+                                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {opt === 'NA' ? 'N/A' : opt}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
-              );
-            })}
+              ) : activeStageIndex >= 0 ? (
+                (() => {
+                  const zone = config.zones[activeStageIndex];
+                  const zoneItems = config.items.filter((i) => i.zone === zone.key);
+                  const zoneNok = zoneItems.filter((i) => itemsMap[i.id] === 'NOK').length;
+                  const nextZone = config.zones[activeStageIndex + 1] ?? null;
+                  const prevZone =
+                    activeStageIndex > 0 ? config.zones[activeStageIndex - 1] : null;
 
-            {zoneFilter === 'NOK_ONLY' && liveStats.nokCount === 0 && (
-              <div className="p-8 text-center border border-dashed border-emerald-200 rounded-xl bg-emerald-50/40">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto mb-1.5" />
-                <p className="text-xs font-bold text-[#06295A]">
-                  Nenhum item com NOK nesta blitz ({liveStats.percent}% de conformidade).
-                </p>
-              </div>
-            )}
+                  return (
+                    <div className="flex flex-col">
+                      <div className="px-4 py-3 bg-[#F4F8FD] border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <div className="text-[10.5px] font-bold uppercase tracking-wider text-[#1256BA]">
+                            Etapa {activeStageIndex + 1} de {config.zones.length}
+                          </div>
+                          <h3 className="font-display text-sm font-extrabold uppercase text-[#06295A]">
+                            {zone.label}{' '}
+                            <span className="font-mono-tabular text-xs font-semibold text-slate-500">
+                              ({zoneItems.length} itens{zoneNok > 0 ? ` · ${zoneNok} NOK` : ''})
+                            </span>
+                          </h3>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => markZoneOk(zone.key)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 text-xs font-bold cursor-pointer"
+                        >
+                          <CheckCheck className="w-3.5 h-3.5" />
+                          <span>Marcar Etapa Tudo OK</span>
+                        </button>
+                      </div>
+
+                      <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {zoneItems.map((item) => {
+                          const status = itemsMap[item.id] ?? 'OK';
+                          return (
+                            <div
+                              key={item.id}
+                              className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                                status === 'NOK'
+                                  ? 'bg-red-50/70 border-red-300'
+                                  : status === 'NA'
+                                    ? 'bg-slate-50 border-slate-200'
+                                    : 'bg-white border-slate-200/90 hover:border-slate-300'
+                              }`}
+                            >
+                              <span
+                                className={`text-xs font-semibold leading-snug ${
+                                  status === 'NOK'
+                                    ? 'text-red-900 font-bold'
+                                    : 'text-[#06295A]'
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+
+                              <div className="inline-flex items-center gap-1 shrink-0">
+                                {(['OK', 'NOK', 'NA'] as BlitzItemStatus[]).map((opt) => {
+                                  const active = status === opt;
+                                  const btnClass = active
+                                    ? opt === 'OK'
+                                      ? 'bg-emerald-600 text-white border-emerald-600'
+                                      : opt === 'NOK'
+                                        ? 'bg-red-600 text-white border-red-600'
+                                        : 'bg-slate-600 text-white border-slate-600'
+                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100';
+                                  return (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      onClick={() => setItemStatus(item.id, opt)}
+                                      className={`px-2 py-1 rounded border text-[10.5px] font-extrabold tracking-wide transition-colors cursor-pointer ${btnClass}`}
+                                    >
+                                      {opt === 'NA' ? 'N/A' : opt}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="px-4 py-3 bg-[#F4F8FD] border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          {prevZone && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveStageKey(prevZone.key)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-[#06295A] cursor-pointer"
+                            >
+                              <ArrowLeft className="w-3.5 h-3.5" />
+                              <span>Etapa Anterior</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleCompleteStageAndAdvance}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B3C7D] hover:bg-[#1256BA] text-white text-xs font-bold shadow-xs cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>
+                            {nextZone
+                              ? `Concluir e Iniciar ${nextZone.label}`
+                              : 'Concluir Última Etapa'}
+                          </span>
+                          {nextZone && <ArrowRight className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="p-8 text-center space-y-3">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#1256BA]">
+                    {completedStagesCount === config.zones.length
+                      ? 'Todas as etapas finalizadas'
+                      : 'Inspeção Guiada por Etapa'}
+                  </div>
+                  <h3 className="font-display text-base font-extrabold text-[#06295A]">
+                    {completedStagesCount === config.zones.length
+                      ? `Checklist completo (${liveStats.percent}% de conformidade)`
+                      : `Primeiro passo: ${config.zones[0]?.label ?? 'Iniciar Check'}`}
+                  </h3>
+                  <p className="text-xs text-slate-600 max-w-md mx-auto">
+                    {completedStagesCount === config.zones.length
+                      ? 'Todas as 6 etapas foram revisadas. Clique em "Salvar Blitz" abaixo ou clique em "Revisar" ao lado de qualquer etapa.'
+                      : 'Clique em "Iniciar" ao lado de cada etapa à esquerda para fazer os checks por seção, começando pela Cabine & Documentação.'}
+                  </p>
+                  {completedStagesCount < config.zones.length && config.zones[0] && (
+                    <button
+                      type="button"
+                      onClick={() => handleStartStage(config.zones[0].key)}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0B3C7D] hover:bg-[#1256BA] text-white text-xs font-bold shadow-sm cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Iniciar {config.zones[0].label}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Sticky Footer Save Bar — Always Auto-Syncs with Check de Segurança */}
