@@ -28,6 +28,7 @@ import {
   parseVisualValidation,
   serializeVisualValidation,
 } from '../data/visualStandardsSeed';
+import { normalizeAssetUrl } from '../data/fleetSeed';
 
 interface VisualStandardsViewProps {
   records: LegalizedDocumentRecord[];
@@ -490,7 +491,7 @@ export const VisualStandardsView: React.FC<VisualStandardsViewProps> = ({
               <div className="text-[0.68rem] font-bold uppercase tracking-wider text-blue-200/90">
                 1.2.2 · INSPEÇÃO DE PADRÃO VISUAL AMBEV
               </div>
-              <h2 className="font-display text-base sm:text-lg font-extrabold tracking-tight">
+              <h2 className="font-display text-base sm:text-lg font-bold tracking-[0.015em] [word-spacing:0.12em]">
                 1.2.2 PADRÕES VISUAIS — VALIDAÇÃO DE FROTA E ARMAZÉM
               </h2>
               <p className="text-xs text-blue-100/85 mt-0.5">
@@ -542,7 +543,7 @@ export const VisualStandardsView: React.FC<VisualStandardsViewProps> = ({
                   <div className="text-[0.65rem] font-bold uppercase tracking-wider text-blue-200/90">
                     {activeDeck.code} · {activeDeck.items.length} ITENS DE BLOQUEIO
                   </div>
-                  <h2 className="font-display text-sm sm:text-base font-extrabold tracking-tight truncate">
+                  <h2 className="font-display text-sm sm:text-base font-bold tracking-[0.015em] [word-spacing:0.12em] truncate">
                     {activeDeck.title}
                   </h2>
                 </div>
@@ -931,7 +932,7 @@ export const VisualStandardsView: React.FC<VisualStandardsViewProps> = ({
                                 >
                                   {item.imageUrl && !imgBroken ? (
                                     <img
-                                      src={item.imageUrl}
+                                      src={normalizeAssetUrl(item.imageUrl)}
                                       alt={`Referência visual: ${item.name}`}
                                       referrerPolicy="no-referrer"
                                       loading="lazy"
@@ -967,7 +968,7 @@ export const VisualStandardsView: React.FC<VisualStandardsViewProps> = ({
                                       <span className="w-6 h-6 rounded-md bg-white/12 border border-white/20 flex items-center justify-center shrink-0">
                                         <Camera className="w-3.5 h-3.5 text-[#93C5FD]" />
                                       </span>
-                                      <span className="font-display text-[0.78rem] font-extrabold uppercase tracking-tight leading-tight text-white truncate">
+                                      <span className="font-display text-[0.78rem] font-bold uppercase tracking-[0.02em] [word-spacing:0.16em] leading-tight text-white truncate">
                                         {item.name}
                                       </span>
                                     </div>
@@ -1112,7 +1113,7 @@ export const VisualStandardsView: React.FC<VisualStandardsViewProps> = ({
             <div className="p-4 flex flex-col sm:flex-row items-center gap-4">
               {zoomedItem.imageUrl && !failedImgIds[zoomedItem.id] ? (
                 <img
-                  src={zoomedItem.imageUrl}
+                  src={normalizeAssetUrl(zoomedItem.imageUrl)}
                   alt={`Referência ampliada: ${zoomedItem.name}`}
                   referrerPolicy="no-referrer"
                   className="max-h-[60vh] w-auto rounded-lg border-2 border-[#60A5FA] object-contain"

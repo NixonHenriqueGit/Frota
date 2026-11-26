@@ -126,7 +126,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           )}
 
           <div className="min-w-0">
-            <h1 className="font-display text-base sm:text-[1.22rem] font-extrabold text-[#06295A] tracking-tight leading-tight truncate">
+            <h1 className="font-display text-base sm:text-[1.22rem] font-bold text-[#06295A] tracking-[0.01em] [word-spacing:0.1em] leading-tight truncate">
               <span className="text-[#1256BA]">
                 {activeSection === 'bloco-1'
                   ? 'BLOCO 1 · Documentos da Frota'

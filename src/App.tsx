@@ -303,7 +303,9 @@ export default function App() {
           d.folder !== 'PADRÕES DE EQUIPAMENTOS' &&
           d.folder !== 'PADRÕES VISUAIS' &&
           d.folder !== 'CHECK DE SEGURANÇA' &&
-          d.folder !== 'BLITZ DE ENTREGA'
+          d.folder !== 'BLITZ DE ENTREGA' &&
+          d.folder !== 'BLITZ DE PUXADA' &&
+          d.folder !== 'BLITZ EMPILHADEIRA'
       ),
     [legalizedDocs]
   );
@@ -330,6 +332,16 @@ export default function App() {
 
   const blitzEntregaDocs = useMemo(
     () => legalizedDocs.filter((d) => d.folder === 'BLITZ DE ENTREGA'),
+    [legalizedDocs]
+  );
+
+  const blitzPuxadaDocs = useMemo(
+    () => legalizedDocs.filter((d) => d.folder === 'BLITZ DE PUXADA'),
+    [legalizedDocs]
+  );
+
+  const blitzEmpilhadeiraDocs = useMemo(
+    () => legalizedDocs.filter((d) => d.folder === 'BLITZ EMPILHADEIRA'),
     [legalizedDocs]
   );
 
@@ -726,6 +738,8 @@ export default function App() {
                 <QualitySafetyRequirementsView
                   records={safetyCheckDocs}
                   blitzRecords={blitzEntregaDocs}
+                  blitzPuxadaRecords={blitzPuxadaDocs}
+                  blitzEmpilhadeiraRecords={blitzEmpilhadeiraDocs}
                   vehicles={vehicles}
                   onAddRecords={handleAddLegalizedDocs}
                   onUpdateRecord={handleUpdateLegalizedDoc}

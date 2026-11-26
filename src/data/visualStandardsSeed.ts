@@ -538,13 +538,13 @@ export const VISUAL_STANDARD_DECKS: Record<VisualStandardScope, VisualStandardDe
     subtitle:
       '44 itens críticos de inspeção visual e bloqueio de segurança (Baiado, Sider, Van e Todos os Modais)',
     pdfUrl:
-      '/assets/aistudio/Padr_o_Visual_-_Conformidade_da_Frota_Caminh_es__Carretas__Palateiras_76de5360.pdf',
+      './assets/aistudio/Padr_o_Visual_-_Conformidade_da_Frota_Caminh_es__Carretas__Palateiras_76de5360.pdf',
     pdfFileName: 'Padrão Visual - Conformidade da Frota Caminhões, Carretas, Palateiras.pdf',
     modalOptions: ['BAIADO', 'SIDER', 'VAN', 'CARRETA / PUXADA', 'PALETEIRA', 'TODOS MODAIS'],
     applicationFilters: ['TODOS', 'TODOS MODAIS', 'BAIADO', 'SIDER', 'BAIADO E SIDER', 'VAN'],
     items: FROTA_VISUAL_ITEMS.map((item) => ({
       ...item,
-      imageUrl: `/assets/visual-standards/frota-${String(item.order).padStart(2, '0')}.jpg`,
+      imageUrl: `./assets/visual-standards/frota-${String(item.order).padStart(2, '0')}.jpg`,
     })),
   },
   equipamentos: {
@@ -555,7 +555,7 @@ export const VISUAL_STANDARD_DECKS: Record<VisualStandardScope, VisualStandardDe
     subtitle:
       '17 itens críticos de inspeção visual para Empilhadeiras, Empilhadeiras a Gás (GLP) e Equipamentos de Armazém',
     pdfUrl:
-      '/assets/aistudio/Padr_o_Visual_-_Conformidade_dos_Equipamentos_de_Armaz_m_b850fbe4.pdf',
+      './assets/aistudio/Padr_o_Visual_-_Conformidade_dos_Equipamentos_de_Armaz_m_b850fbe4.pdf',
     pdfFileName: 'Padrão Visual - Conformidade dos Equipamentos de Armazém.pdf',
     modalOptions: [
       'EMPILHADEIRA',
@@ -571,7 +571,7 @@ export const VISUAL_STANDARD_DECKS: Record<VisualStandardScope, VisualStandardDe
     ],
     items: EQUIPAMENTOS_VISUAL_ITEMS.map((item) => ({
       ...item,
-      imageUrl: `/assets/visual-standards/equip-${String(item.order).padStart(2, '0')}.jpg`,
+      imageUrl: `./assets/visual-standards/equip-${String(item.order).padStart(2, '0')}.jpg`,
     })),
   },
 };

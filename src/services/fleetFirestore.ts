@@ -103,18 +103,24 @@ const VALID_LEGALIZED_FOLDERS = new Set<LegalizedFolderName>([
   'PADRÕES VISUAIS',
   'CHECK DE SEGURANÇA',
   'BLITZ DE ENTREGA',
+  'BLITZ DE PUXADA',
+  'BLITZ EMPILHADEIRA',
 ]);
 const EQUIPMENT_STANDARD_ID_PREFIX = 'equip-';
 const VISUAL_STANDARD_ID_PREFIX = 'vp-';
 const SAFETY_CHECK_ID_PREFIX = 'cs-';
 const BLITZ_ENTREGA_ID_PREFIX = 'be-';
+const BLITZ_PUXADA_ID_PREFIX = 'bp-';
+const BLITZ_EMPILHADEIRA_ID_PREFIX = 'bm-';
 
 function toFirestoreLegalizedFolder(folder: LegalizedFolderName): string {
   if (
     folder === 'PADRÕES DE EQUIPAMENTOS' ||
     folder === 'PADRÕES VISUAIS' ||
     folder === 'CHECK DE SEGURANÇA' ||
-    folder === 'BLITZ DE ENTREGA'
+    folder === 'BLITZ DE ENTREGA' ||
+    folder === 'BLITZ DE PUXADA' ||
+    folder === 'BLITZ EMPILHADEIRA'
   ) {
     return 'ANTT';
   }
@@ -564,9 +570,13 @@ export function mapDocToLegalizedDoc(data: Record<string, unknown>): LegalizedDo
         ? 'CHECK DE SEGURANÇA'
         : id.startsWith(BLITZ_ENTREGA_ID_PREFIX)
           ? 'BLITZ DE ENTREGA'
-          : VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
-            ? (data.folder as LegalizedFolderName)
-            : 'ANTT';
+          : id.startsWith(BLITZ_PUXADA_ID_PREFIX)
+            ? 'BLITZ DE PUXADA'
+            : id.startsWith(BLITZ_EMPILHADEIRA_ID_PREFIX)
+              ? 'BLITZ EMPILHADEIRA'
+              : VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
+                ? (data.folder as LegalizedFolderName)
+                : 'ANTT';
   const rawSub = data.subfolder as CrlvSubfolderName | undefined;
   const subfolder =
     folder === 'CRLV' && rawSub && VALID_CRLV_SUBFOLDERS.has(rawSub) ? rawSub : '';
@@ -1409,7 +1419,13 @@ export async function addLegalizedDocInFirestore(
           : item.folder === 'BLITZ DE ENTREGA' &&
               !rawSafeId.startsWith(BLITZ_ENTREGA_ID_PREFIX)
             ? `${BLITZ_ENTREGA_ID_PREFIX}${rawSafeId}`.slice(0, 120)
-            : rawSafeId;
+            : item.folder === 'BLITZ DE PUXADA' &&
+                !rawSafeId.startsWith(BLITZ_PUXADA_ID_PREFIX)
+              ? `${BLITZ_PUXADA_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+              : item.folder === 'BLITZ EMPILHADEIRA' &&
+                  !rawSafeId.startsWith(BLITZ_EMPILHADEIRA_ID_PREFIX)
+                ? `${BLITZ_EMPILHADEIRA_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+                : rawSafeId;
   const path = `legalizedDocs/${safeId}`;
   try {
     const rawDataUrl = typeof item.fileDataUrl === 'string' ? item.fileDataUrl : '';

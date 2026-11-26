@@ -18,6 +18,7 @@ import {
 import { LegalizedDocumentRecord, Vehicle } from '../types/fleet';
 import { DocumentPreviewContent } from './DocumentPreviewContent';
 import { MAX_LEGALIZED_FILE_BYTES } from '../services/fleetFirestore';
+import { detectPlateFromFilename } from '../utils/plateMatcher';
 
 const SANITARY_FOLDER = 'LAUDO DE VIGILÂNCIA SANITÁRIA' as const;
 
@@ -34,17 +35,6 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-function detectPlateFromFilename(fileName: string, vehicles: Vehicle[]): string {
-  const upper = fileName.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  for (const v of vehicles) {
-    const cleanPlate = v.plate.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (cleanPlate && upper.includes(cleanPlate)) {
-      return v.plate;
-    }
-  }
-  return 'GERAL';
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {

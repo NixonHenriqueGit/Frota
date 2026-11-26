@@ -17,27 +17,31 @@ import {
   Zap,
 } from 'lucide-react';
 import {
-  BlitzEntregaPayload,
+  BlitzInspectionPayload,
   BlitzItemStatus,
   BlitzZoneKey,
   ComplianceMonth,
   LegalizedDocumentRecord,
   SafetyCheckMonthKey,
+  SafetyCheckOperation,
   Vehicle,
 } from '../types/fleet';
 import {
-  BLITZ_ENTREGA_ITEMS,
   BLITZ_MONTHS,
-  BLITZ_ZONES,
-  buildBlitzEntregaRecord,
-  computeBlitzPercent,
   getCurrentComplianceMonth,
   monthToSafetyKey,
-  parseBlitzEntrega,
 } from '../data/blitzEntregaSeed';
+import {
+  BlitzConfig,
+  BlitzMidColumnKey,
+  buildBlitzRecord,
+  computeBlitzPercentForItems,
+  parseBlitzRecord,
+} from '../data/blitzCatalog';
 import { SAFETY_CHECK_SEED_ROWS } from '../data/safetyCheckSeed';
 
-interface BlitzEntregaWorkspaceProps {
+interface BlitzWorkspaceProps {
+  config: BlitzConfig;
   records: LegalizedDocumentRecord[];
   vehicles: Vehicle[];
   onBack: () => void;
@@ -45,6 +49,7 @@ interface BlitzEntregaWorkspaceProps {
   onUpdateRecord: (id: string, patch: Partial<LegalizedDocumentRecord>) => void;
   onDeleteRecord: (id: string) => void;
   onSyncPercentToSafetyCheck: (
+    operation: SafetyCheckOperation,
     plate: string,
     monthKey: SafetyCheckMonthKey,
     percent: number
@@ -62,15 +67,57 @@ function nowTimeBr(): string {
   });
 }
 
-function createAllOkMap(): Record<string, BlitzItemStatus> {
+function inferSafetyOperation(v: Vehicle): SafetyCheckOperation {
+  if (v.category === 'Empilhadeira' || v.sector === 'Armazém') return 'ARMAZÉM';
+  if (
+    v.sector === 'Puxada' ||
+    v.category === 'Tração Caminhão Trator' ||
+    v.category === 'Carga Semi-Reboque'
+  ) {
+    return 'PUXADA';
+  }
+  return 'ENTREGA';
+}
+
+function createAllOkMap(config: BlitzConfig): Record<string, BlitzItemStatus> {
   const map: Record<string, BlitzItemStatus> = {};
-  for (const item of BLITZ_ENTREGA_ITEMS) {
+  for (const item of config.items) {
     map[item.id] = 'OK';
   }
   return map;
 }
 
-export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
+function getMidColumnValue(entry: BlitzInspectionPayload, col: BlitzMidColumnKey): string {
+  switch (col) {
+    case 'Mapa:':
+      return entry.mapa || '—';
+    case 'PLACA:':
+      return entry.placa;
+    case 'Nome:':
+      return entry.nome || '—';
+    case 'CPF:':
+      return entry.cpf || '—';
+  }
+}
+
+function getMidColumnExportValue(
+  entry: BlitzInspectionPayload,
+  col: BlitzMidColumnKey
+): string {
+  switch (col) {
+    case 'Mapa:':
+      return entry.mapa;
+    case 'PLACA:':
+      return entry.placa;
+    case 'Nome:':
+      return entry.nome;
+    case 'CPF:':
+      return entry.cpf;
+  }
+}
+
+export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
+  config,
   records,
   vehicles,
   onBack,
@@ -83,7 +130,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [editingDisplayId, setEditingDisplayId] = useState<string>('');
 
-  // Form fields — Criador & Mês stay sticky between trucks for fast sequential inspection
+  // Form fields — Criador & Mês stay sticky between inspections for fast sequential work
   const [mes, setMes] = useState<ComplianceMonth>(() => getCurrentComplianceMonth());
   const [criador, setCriador] = useState('');
   const [dataStr, setDataStr] = useState(() => nowDateBr());
@@ -93,11 +140,10 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [itemsMap, setItemsMap] = useState<Record<string, BlitzItemStatus>>(() =>
-    createAllOkMap()
+    createAllOkMap(config)
   );
 
   const [zoneFilter, setZoneFilter] = useState<'ALL' | 'NOK_ONLY' | BlitzZoneKey>('ALL');
-  const [syncToSafetyCheck, setSyncToSafetyCheck] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
 
   // Table filter state
@@ -111,10 +157,10 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
     }, 4000);
   };
 
-  const parsedEntries: BlitzEntregaPayload[] = useMemo(() => {
-    const out: BlitzEntregaPayload[] = [];
+  const parsedEntries: BlitzInspectionPayload[] = useMemo(() => {
+    const out: BlitzInspectionPayload[] = [];
     records.forEach((rec, idx) => {
-      const parsed = parseBlitzEntrega(rec.fileDataUrl, rec.id);
+      const parsed = parseBlitzRecord(config, rec.fileDataUrl, rec.id);
       if (parsed) {
         out.push({
           ...parsed,
@@ -124,15 +170,15 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
       }
     });
     return out;
-  }, [records]);
+  }, [config, records]);
 
-  // Entrega plate roster for 1-click yard chips
-  const entregaPlates = useMemo(() => {
+  // Roster of plates/equipment matching this Blitz's operation for 1-click yard chips
+  const operationPlates = useMemo(() => {
     const seen = new Set<string>();
     const list: string[] = [];
 
     for (const seed of SAFETY_CHECK_SEED_ROWS) {
-      if (seed.operation === 'ENTREGA') {
+      if (seed.operation === config.safetyOperation) {
         const clean = seed.plate.toUpperCase().trim();
         if (clean && !seen.has(clean)) {
           seen.add(clean);
@@ -142,7 +188,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
     }
 
     for (const v of vehicles) {
-      if (v.category === 'Caminhão' || v.sector === 'Distribuição') {
+      if (inferSafetyOperation(v) === config.safetyOperation) {
         const clean = v.plate.toUpperCase().trim();
         if (clean && !seen.has(clean)) {
           seen.add(clean);
@@ -152,10 +198,10 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
     }
 
     return list;
-  }, [vehicles]);
+  }, [config.safetyOperation, vehicles]);
 
   const inspectedInMonthMap = useMemo(() => {
-    const map = new Map<string, BlitzEntregaPayload>();
+    const map = new Map<string, BlitzInspectionPayload>();
     for (const entry of parsedEntries) {
       if (entry.mes === mes) {
         const norm = entry.placa.replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -167,7 +213,10 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
     return map;
   }, [parsedEntries, mes]);
 
-  const liveStats = useMemo(() => computeBlitzPercent(itemsMap), [itemsMap]);
+  const liveStats = useMemo(
+    () => computeBlitzPercentForItems(config.items, itemsMap),
+    [config.items, itemsMap]
+  );
 
   const setItemStatus = (itemId: string, status: BlitzItemStatus) => {
     setItemsMap((prev) => ({
@@ -178,7 +227,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
 
   const markAllItems = (status: BlitzItemStatus) => {
     const next: Record<string, BlitzItemStatus> = {};
-    for (const item of BLITZ_ENTREGA_ITEMS) {
+    for (const item of config.items) {
       next[item.id] = status;
     }
     setItemsMap(next);
@@ -187,7 +236,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
   const markZoneOk = (zone: BlitzZoneKey) => {
     setItemsMap((prev) => {
       const next = { ...prev };
-      for (const item of BLITZ_ENTREGA_ITEMS) {
+      for (const item of config.items) {
         if (item.zone === zone) next[item.id] = 'OK';
       }
       return next;
@@ -203,20 +252,19 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
     setCpf('');
     setDataStr(nowDateBr());
     setHoraStr(nowTimeBr());
-    setItemsMap(createAllOkMap());
+    setItemsMap(createAllOkMap(config));
     setZoneFilter('ALL');
   };
 
   const handleSave = (advanceToNext: boolean) => {
     const cleanPlate = placa.replace(/[^A-Z0-9-]/gi, '').toUpperCase().trim();
     if (!cleanPlate) {
-      showNotice('Selecione ou digite a PLACA do veículo antes de salvar.');
+      showNotice('Selecione ou digite a PLACA / código antes de salvar.');
       return;
     }
 
-    const displayId =
-      editingDisplayId || String(parsedEntries.length + 1);
-    const payload: BlitzEntregaPayload = {
+    const displayId = editingDisplayId || String(parsedEntries.length + 1);
+    const payload: BlitzInspectionPayload = {
       id: editingRecordId ?? '',
       displayId,
       mes,
@@ -224,14 +272,14 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
       data: dataStr.trim() || nowDateBr(),
       hora: horaStr.trim() || nowTimeBr(),
       percentual: liveStats.percent,
-      mapa: mapa.trim(),
+      mapa: config.hasMapa ? mapa.trim() : '',
       placa: cleanPlate,
       nome: nome.trim(),
       cpf: cpf.trim(),
       items: itemsMap,
     };
 
-    const builtDoc = buildBlitzEntregaRecord(payload, payload.data);
+    const builtDoc = buildBlitzRecord(config, payload, payload.data);
 
     if (editingRecordId) {
       onUpdateRecord(editingRecordId, {
@@ -249,34 +297,36 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
       onAddRecords([builtDoc]);
     }
 
-    if (syncToSafetyCheck) {
-      onSyncPercentToSafetyCheck(cleanPlate, monthToSafetyKey(mes), liveStats.percent);
-    }
+    // Sempre atualiza automaticamente o % no Check de Segurança
+    onSyncPercentToSafetyCheck(
+      config.safetyOperation,
+      cleanPlate,
+      monthToSafetyKey(mes),
+      liveStats.percent
+    );
 
     if (advanceToNext) {
       const currentNorm = cleanPlate.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-      const nextPending = entregaPlates.find((p) => {
+      const nextPending = operationPlates.find((p) => {
         const pNorm = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
         return pNorm !== currentNorm && !inspectedInMonthMap.has(pNorm);
       });
       resetForNextTruck(nextPending ?? '');
       showNotice(
-        `Blitz de ${cleanPlate} salva (${liveStats.percent}%)${
-          syncToSafetyCheck ? ` e atualizada em Check de Segurança (${mes})` : ''
-        }.${nextPending ? ` Próxima placa carregada: ${nextPending}.` : ''}`
+        `Blitz de ${cleanPlate} salva (${liveStats.percent}%) e atualizada em Check de Segurança (${config.safetyOperation} · ${mes}).${
+          nextPending ? ` Próxima carregada: ${nextPending}.` : ''
+        }`
       );
     } else {
       setEditingRecordId(builtDoc.id);
       setEditingDisplayId(displayId);
       showNotice(
-        `Blitz de ${cleanPlate} salva (${liveStats.percent}%)${
-          syncToSafetyCheck ? ` e sincronizada no Check de Segurança` : ''
-        }.`
+        `Blitz de ${cleanPlate} salva (${liveStats.percent}%) e atualizada em Check de Segurança (${config.safetyOperation} · ${mes}).`
       );
     }
   };
 
-  const handleLoadEntry = (entry: BlitzEntregaPayload) => {
+  const handleLoadEntry = (entry: BlitzInspectionPayload) => {
     setEditingRecordId(entry.id);
     setEditingDisplayId(entry.displayId);
     setMes(entry.mes);
@@ -287,58 +337,64 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
     setMapa(entry.mapa);
     setNome(entry.nome);
     setCpf(entry.cpf);
-    setItemsMap({ ...createAllOkMap(), ...entry.items });
+    setItemsMap({ ...createAllOkMap(config), ...entry.items });
     setZoneFilter('ALL');
     setViewMode('form');
   };
 
+  const firstItemsBlock = useMemo(
+    () => config.items.slice(0, config.midAfterItemCount),
+    [config]
+  );
+  const lastItemsBlock = useMemo(
+    () => config.items.slice(config.midAfterItemCount),
+    [config]
+  );
+  const totalColumnsCount =
+    6 + config.items.length + config.midColumnsOrder.length;
+
   const handleExportExcel = () => {
     const wb = XLSX.utils.book_new();
 
-    const first41 = BLITZ_ENTREGA_ITEMS.slice(0, 41);
-    const last14 = BLITZ_ENTREGA_ITEMS.slice(41);
-
     const rows = parsedEntries.map((entry, idx) => {
       const out: Record<string, string> = {
-        MÊS: entry.mes,
+        Mês: entry.mes,
         id: entry.displayId || String(idx + 1),
         Criador: entry.criador,
         Data: entry.data,
         Hora: entry.hora,
         '%Percentual': `${entry.percentual}%`,
       };
-      for (const item of first41) {
+      for (const item of firstItemsBlock) {
         out[item.label] = entry.items[item.id] ?? 'OK';
       }
-      out['Mapa:'] = entry.mapa;
-      out['PLACA:'] = entry.placa;
-      out['Nome:'] = entry.nome;
-      out['CPF:'] = entry.cpf;
-      for (const item of last14) {
+      for (const midCol of config.midColumnsOrder) {
+        out[midCol] = getMidColumnExportValue(entry, midCol);
+      }
+      for (const item of lastItemsBlock) {
         out[item.label] = entry.items[item.id] ?? 'OK';
       }
       return out;
     });
 
     const emptyRow: Record<string, string> = {
-      MÊS: '',
+      Mês: '',
       id: '',
       Criador: '',
       Data: '',
       Hora: '',
       '%Percentual': '',
     };
-    for (const item of first41) emptyRow[item.label] = '';
-    emptyRow['Mapa:'] = '';
-    emptyRow['PLACA:'] = '';
-    emptyRow['Nome:'] = '';
-    emptyRow['CPF:'] = '';
-    for (const item of last14) emptyRow[item.label] = '';
+    for (const item of firstItemsBlock) emptyRow[item.label] = '';
+    for (const midCol of config.midColumnsOrder) emptyRow[midCol] = '';
+    for (const item of lastItemsBlock) emptyRow[item.label] = '';
 
     const ws = XLSX.utils.json_to_sheet(rows.length > 0 ? rows : [emptyRow]);
-    XLSX.utils.book_append_sheet(wb, ws, 'BLITZ DE ENTREGA');
-    XLSX.writeFile(wb, '1.2.3_Blitz_de_Entrega.xlsx');
-    showNotice('Planilha Blitz de Entrega exportada com todas as 65 colunas.');
+    XLSX.utils.book_append_sheet(wb, ws, config.excelSheetName.slice(0, 31));
+    XLSX.writeFile(wb, config.excelFileName);
+    showNotice(
+      `Planilha ${config.title} exportada com todas as ${totalColumnsCount} colunas.`
+    );
   };
 
   const filteredTableRows = useMemo(() => {
@@ -356,9 +412,9 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
   }, [parsedEntries, tableSearch, tableMonthFilter]);
 
   const visibleZones = useMemo(() => {
-    if (zoneFilter === 'ALL' || zoneFilter === 'NOK_ONLY') return BLITZ_ZONES;
-    return BLITZ_ZONES.filter((z) => z.key === zoneFilter);
-  }, [zoneFilter]);
+    if (zoneFilter === 'ALL' || zoneFilter === 'NOK_ONLY') return config.zones;
+    return config.zones.filter((z) => z.key === zoneFilter);
+  }, [config.zones, zoneFilter]);
 
   return (
     <section className="flex-1 flex flex-col rounded-xl bg-white border border-slate-200/90 shadow-[0_3px_14px_rgba(15,23,42,0.05)] overflow-hidden">
@@ -377,7 +433,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
               <h2 className="font-display text-[1rem] font-extrabold tracking-wide text-white uppercase truncate">
-                BLITZ DE ENTREGA
+                {config.title}
               </h2>
               <span
                 className={`font-mono-tabular text-[11px] font-extrabold px-2 py-0.5 rounded border shrink-0 ${
@@ -390,7 +446,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
               </span>
             </div>
             <p className="text-[0.74rem] text-blue-100/85 mt-0.5 truncate">
-              Inspeção rápida de 55 itens por zona — já inicia com Tudo OK para marcar só as exceções.
+              {config.subtitle}
             </p>
           </div>
         </div>
@@ -458,12 +514,13 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
                   1. Selecione a placa com 1 clique ({mes})
                 </span>
                 <span className="font-mono-tabular text-[11px] font-semibold text-slate-500">
-                  {inspectedInMonthMap.size}/{entregaPlates.length} feitas em {mes.toLowerCase()}
+                  {inspectedInMonthMap.size}/{operationPlates.length} feitas em{' '}
+                  {mes.toLowerCase()}
                 </span>
               </div>
 
               <div className="flex flex-wrap gap-1.5">
-                {entregaPlates.map((p) => {
+                {operationPlates.map((p) => {
                   const pNorm = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
                   const done = inspectedInMonthMap.get(pNorm);
                   const isCurrent =
@@ -472,13 +529,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
                     <button
                       key={p}
                       type="button"
-                      onClick={() => {
-                        if (done && !editingRecordId) {
-                          setPlaca(p);
-                        } else {
-                          setPlaca(p);
-                        }
-                      }}
+                      onClick={() => setPlaca(p)}
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border font-mono-tabular text-xs font-bold transition-all cursor-pointer ${
                         isCurrent
                           ? 'bg-[#0B3C7D] text-white border-[#0B3C7D] shadow-sm'
@@ -503,17 +554,21 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
               </div>
             </div>
 
-            {/* Compact 8-field Metadata Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 pt-1">
+            {/* Compact Metadata Row */}
+            <div
+              className={`grid grid-cols-2 sm:grid-cols-4 ${
+                config.hasMapa ? 'lg:grid-cols-8' : 'lg:grid-cols-7'
+              } gap-2.5 pt-1`}
+            >
               <div>
                 <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
-                  PLACA *
+                  {config.plateLabel}
                 </label>
                 <input
                   type="text"
                   value={placa}
                   onChange={(e) => setPlaca(e.target.value.toUpperCase())}
-                  placeholder="NPR2601"
+                  placeholder={config.platePlaceholder}
                   className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-extrabold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
                 />
               </div>
@@ -572,28 +627,30 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
-                  Mapa
-                </label>
-                <input
-                  type="text"
-                  value={mapa}
-                  onChange={(e) => setMapa(e.target.value)}
-                  placeholder="Nº Mapa"
-                  className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
-                />
-              </div>
+              {config.hasMapa && (
+                <div>
+                  <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
+                    Mapa
+                  </label>
+                  <input
+                    type="text"
+                    value={mapa}
+                    onChange={(e) => setMapa(e.target.value)}
+                    placeholder="Nº Mapa"
+                    className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 font-mono-tabular text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-[10.5px] font-bold uppercase tracking-wide text-slate-600 mb-1">
-                  Nome (Motorista)
+                  {config.driverLabel}
                 </label>
                 <input
                   type="text"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  placeholder="Motorista"
+                  placeholder={config.driverPlaceholder}
                   className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
                 />
               </div>
@@ -625,11 +682,11 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
                     : 'bg-slate-100 text-slate-600 hover:text-[#06295A]'
                 }`}
               >
-                Todas (55)
+                Todas ({config.items.length})
               </button>
-              {BLITZ_ZONES.map((z) => {
-                const count = BLITZ_ENTREGA_ITEMS.filter((i) => i.zone === z.key).length;
-                const nokInZone = BLITZ_ENTREGA_ITEMS.filter(
+              {config.zones.map((z) => {
+                const count = config.items.filter((i) => i.zone === z.key).length;
+                const nokInZone = config.items.filter(
                   (i) => i.zone === z.key && itemsMap[i.id] === 'NOK'
                 ).length;
                 return (
@@ -675,7 +732,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
-                <span>Marcar Tudo OK (55)</span>
+                <span>Marcar Tudo OK ({config.items.length})</span>
               </button>
               <button
                 type="button"
@@ -689,10 +746,10 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* Step 3: 55 Checklist Items Grouped by Physical Zone */}
+          {/* Step 3: Checklist Items Grouped by Physical Zone */}
           <div className="flex-1 p-4 space-y-5 bg-white">
             {visibleZones.map((zone) => {
-              const zoneItems = BLITZ_ENTREGA_ITEMS.filter((item) => {
+              const zoneItems = config.items.filter((item) => {
                 if (item.zone !== zone.key) return false;
                 if (zoneFilter === 'NOK_ONLY') return itemsMap[item.id] === 'NOK';
                 return true;
@@ -784,19 +841,14 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
             )}
           </div>
 
-          {/* Sticky Footer Save Bar */}
+          {/* Sticky Footer Save Bar — Always Auto-Syncs with Check de Segurança */}
           <div className="sticky bottom-0 z-10 px-4 py-3 bg-[#F4F8FD] border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-            <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#06295A] cursor-pointer">
-              <input
-                type="checkbox"
-                checked={syncToSafetyCheck}
-                onChange={(e) => setSyncToSafetyCheck(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-[#0B3C7D] focus:ring-[#1565D8]"
-              />
+            <div className="inline-flex items-center gap-2 text-xs font-semibold text-[#06295A]">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>
-                Atualizar automaticamente o % de <strong>{mes}</strong> no Check de Segurança
+                Atualiza sempre automaticamente o % de <strong>{mes}</strong> em Check de Segurança ({config.safetyOperation})
               </span>
-            </label>
+            </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono-tabular text-xs font-extrabold text-[#06295A] mr-1">
@@ -825,7 +877,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
           </div>
         </div>
       ) : (
-        /* Full 65-Column Planilha / History Mode */
+        /* Full Planilha / History Mode */
         <div className="flex-1 flex flex-col">
           <div className="px-4 py-2.5 bg-[#F4F8FD] border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex flex-wrap items-center gap-2">
@@ -835,7 +887,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
                   type="text"
                   value={tableSearch}
                   onChange={(e) => setTableSearch(e.target.value)}
-                  placeholder="Buscar placa, criador, mapa..."
+                  placeholder="Buscar placa, criador, motorista..."
                   className="w-full h-8 pl-8 pr-7 rounded-lg bg-white border border-slate-200 text-xs font-medium text-[#06295A] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1565D8]/40"
                 />
                 {tableSearch && (
@@ -867,7 +919,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
             </div>
 
             <span className="font-mono-tabular text-xs font-semibold text-slate-500">
-              {filteredTableRows.length} registros · 65 colunas da planilha
+              {filteredTableRows.length} registros · {totalColumnsCount} colunas da planilha
             </span>
           </div>
 
@@ -875,7 +927,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
             {filteredTableRows.length === 0 ? (
               <div className="p-10 text-center">
                 <p className="text-sm font-bold text-[#06295A]">
-                  Nenhuma Blitz de Entrega registrada ainda.
+                  Nenhum registro de {config.title} ainda.
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
                   Clique em &ldquo;Blitz Rápida&rdquo; para realizar a primeira inspeção.
@@ -888,7 +940,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
                     <th className="py-2 px-2.5 border-r border-[#16427C] sticky left-0 z-10 bg-[#06295A]">
                       Ações
                     </th>
-                    <th className="py-2 px-2.5 border-r border-[#16427C]">MÊS</th>
+                    <th className="py-2 px-2.5 border-r border-[#16427C]">Mês</th>
                     <th className="py-2 px-2 border-r border-[#16427C]">id</th>
                     <th className="py-2 px-2.5 border-r border-[#16427C]">Criador</th>
                     <th className="py-2 px-2.5 border-r border-[#16427C]">Data</th>
@@ -896,7 +948,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
                     <th className="py-2 px-2.5 border-r border-[#16427C] text-center bg-[#0A3775]">
                       %Percentual
                     </th>
-                    {BLITZ_ENTREGA_ITEMS.slice(0, 41).map((item) => (
+                    {firstItemsBlock.map((item) => (
                       <th
                         key={item.id}
                         className="py-2 px-2 border-r border-[#16427C] text-center"
@@ -904,11 +956,12 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
                         {item.label}
                       </th>
                     ))}
-                    <th className="py-2 px-2.5 border-r border-[#16427C]">Mapa:</th>
-                    <th className="py-2 px-2.5 border-r border-[#16427C]">PLACA:</th>
-                    <th className="py-2 px-2.5 border-r border-[#16427C]">Nome:</th>
-                    <th className="py-2 px-2.5 border-r border-[#16427C]">CPF:</th>
-                    {BLITZ_ENTREGA_ITEMS.slice(41).map((item) => (
+                    {config.midColumnsOrder.map((midCol) => (
+                      <th key={midCol} className="py-2 px-2.5 border-r border-[#16427C]">
+                        {midCol}
+                      </th>
+                    ))}
+                    {lastItemsBlock.map((item) => (
                       <th
                         key={item.id}
                         className="py-2 px-2 border-r border-[#16427C] text-center"
@@ -965,7 +1018,7 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
                       >
                         {entry.percentual}%
                       </td>
-                      {BLITZ_ENTREGA_ITEMS.slice(0, 41).map((item) => {
+                      {firstItemsBlock.map((item) => {
                         const st = entry.items[item.id] ?? 'OK';
                         return (
                           <td
@@ -982,19 +1035,21 @@ export const BlitzEntregaWorkspace: React.FC<BlitzEntregaWorkspaceProps> = ({
                           </td>
                         );
                       })}
-                      <td className="py-1.5 px-2.5 font-mono-tabular text-slate-700 border-r border-slate-200">
-                        {entry.mapa || '—'}
-                      </td>
-                      <td className="py-1.5 px-2.5 font-mono-tabular font-extrabold text-[#06295A] border-r border-slate-200">
-                        {entry.placa}
-                      </td>
-                      <td className="py-1.5 px-2.5 text-slate-700 border-r border-slate-200">
-                        {entry.nome || '—'}
-                      </td>
-                      <td className="py-1.5 px-2.5 font-mono-tabular text-slate-700 border-r border-slate-200">
-                        {entry.cpf || '—'}
-                      </td>
-                      {BLITZ_ENTREGA_ITEMS.slice(41).map((item) => {
+                      {config.midColumnsOrder.map((midCol) => (
+                        <td
+                          key={midCol}
+                          className={`py-1.5 px-2.5 border-r border-slate-200 ${
+                            midCol === 'PLACA:'
+                              ? 'font-mono-tabular font-extrabold text-[#06295A]'
+                              : midCol === 'Nome:'
+                                ? 'text-slate-700'
+                                : 'font-mono-tabular text-slate-700'
+                          }`}
+                        >
+                          {getMidColumnValue(entry, midCol)}
+                        </td>
+                      ))}
+                      {lastItemsBlock.map((item) => {
                         const st = entry.items[item.id] ?? 'OK';
                         return (
                           <td

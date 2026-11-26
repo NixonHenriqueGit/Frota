@@ -43,7 +43,7 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
       </div>
 
       <div className="my-2.5">
-        <h3 className="font-display text-[0.88rem] font-extrabold leading-snug tracking-tight text-white">
+        <h3 className="font-display text-[0.9rem] font-bold leading-snug tracking-[0.02em] [word-spacing:0.18em] text-white">
           {title}
         </h3>
         <p className="text-[0.72rem] leading-snug text-blue-100/85 mt-1.5 line-clamp-3">

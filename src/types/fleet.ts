@@ -159,7 +159,11 @@ export type LegalizedFolderName =
   | 'PADRÕES DE EQUIPAMENTOS'
   | 'PADRÕES VISUAIS'
   | 'CHECK DE SEGURANÇA'
-  | 'BLITZ DE ENTREGA';
+  | 'BLITZ DE ENTREGA'
+  | 'BLITZ DE PUXADA'
+  | 'BLITZ EMPILHADEIRA';
+
+export type BlitzKind = 'entrega' | 'puxada' | 'empilhadeira';
 
 export type BlitzItemStatus = 'OK' | 'NOK' | 'NA';
 
@@ -169,15 +173,25 @@ export type BlitzZoneKey =
   | 'bau'
   | 'traseira'
   | 'pneus'
-  | 'eletrica';
+  | 'eletrica'
+  | 'torre'
+  | 'sinalizacao';
 
-export interface BlitzEntregaItemDef {
+export interface BlitzZoneDef {
+  key: BlitzZoneKey;
+  label: string;
+  shortLabel: string;
+}
+
+export interface BlitzChecklistItemDef {
   id: string;
   zone: BlitzZoneKey;
   label: string;
 }
 
-export interface BlitzEntregaPayload {
+export type BlitzEntregaItemDef = BlitzChecklistItemDef;
+
+export interface BlitzInspectionPayload {
   id: string;
   displayId: string;
   mes: ComplianceMonth;
@@ -191,6 +205,8 @@ export interface BlitzEntregaPayload {
   cpf: string;
   items: Record<string, BlitzItemStatus>;
 }
+
+export type BlitzEntregaPayload = BlitzInspectionPayload;
 
 export type SafetyCheckOperation = 'ENTREGA' | 'PUXADA' | 'ARMAZÉM';
 

@@ -9,7 +9,6 @@ import {
   FileSpreadsheet,
   FileText,
   Plus,
-  Search,
   Trash2,
   Truck,
   UploadCloud,
@@ -160,8 +159,6 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
     CrlvSubfolderName | 'ALL'
   >('ALL');
   const [activeTab, setActiveTab] = useState<'files' | 'fleet'>('files');
-  const [search, setSearch] = useState('');
-  const [plateFilter, setPlateFilter] = useState<string>('Todas');
   const [isDragging, setIsDragging] = useState(false);
   const [uploadNotice, setUploadNotice] = useState<string | null>(null);
 
@@ -208,6 +205,8 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
       'PADRÕES VISUAIS': 0,
       'CHECK DE SEGURANÇA': 0,
       'BLITZ DE ENTREGA': 0,
+      'BLITZ DE PUXADA': 0,
+      'BLITZ EMPILHADEIRA': 0,
     };
     for (const r of records) {
       if (counts[r.folder] !== undefined) {
@@ -237,7 +236,6 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
   );
 
   const filteredRecords = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return records.filter((r) => {
       if (selectedFolder !== 'ALL' && r.folder !== selectedFolder) return false;
       if (
@@ -247,19 +245,9 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
       ) {
         return false;
       }
-      if (plateFilter !== 'Todas' && r.plate !== plateFilter) return false;
-      if (q) {
-        return (
-          r.fileName.toLowerCase().includes(q) ||
-          r.plate.toLowerCase().includes(q) ||
-          r.folder.toLowerCase().includes(q) ||
-          (r.subfolder || '').toLowerCase().includes(q) ||
-          r.notes.toLowerCase().includes(q)
-        );
-      }
       return true;
     });
-  }, [records, selectedFolder, selectedCrlvSubfolder, plateFilter, search]);
+  }, [records, selectedFolder, selectedCrlvSubfolder]);
 
   const activeFolderMeta = useMemo(() => {
     if (selectedFolder === 'ALL') {
@@ -452,7 +440,6 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
 
   const fleetMatrixRows = useMemo(() => {
     const folder = selectedFolder === 'ALL' ? 'ANTT' : selectedFolder;
-    const q = search.trim().toLowerCase();
     return sortedVehicles
       .filter((v) => {
         if (
@@ -461,14 +448,6 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
           inferCrlvSubfolderForVehicle(v) !== selectedCrlvSubfolder
         ) {
           return false;
-        }
-        if (plateFilter !== 'Todas' && v.plate !== plateFilter) return false;
-        if (q) {
-          return (
-            v.plate.toLowerCase().includes(q) ||
-            v.manufacturerModel.toLowerCase().includes(q) ||
-            v.sector.toLowerCase().includes(q)
-          );
         }
         return true;
       })
@@ -503,7 +482,7 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
           attached,
         };
       });
-  }, [sortedVehicles, selectedFolder, selectedCrlvSubfolder, search, plateFilter, records]);
+  }, [sortedVehicles, selectedFolder, selectedCrlvSubfolder, records]);
 
   return (
     <div className="flex-1 flex flex-col gap-3">
@@ -613,7 +592,7 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
         {/* Card Header */}
         <div className="px-4 py-2.5 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#1565D8] text-white flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="font-display text-[0.9rem] font-bold tracking-tight truncate">
+            <h3 className="font-display text-[0.9rem] font-bold tracking-[0.015em] [word-spacing:0.12em] truncate">
               {activeFolderMeta.title}
             </h3>
             <p className="text-[0.71rem] text-blue-100/85 truncate">
@@ -647,6 +626,15 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
                 Controle por Veículo ({vehicles.length})
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => quickFileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <UploadCloud className="w-3.5 h-3.5" />
+              <span>Envio Rápido</span>
+            </button>
 
             <button
               type="button"
@@ -697,7 +685,7 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
                   >
                     <div className="min-w-0">
                       <div
-                        className={`font-display text-xs font-bold tracking-tight truncate ${
+                        className={`font-display text-xs font-bold tracking-[0.015em] [word-spacing:0.12em] truncate ${
                           isSubActive ? 'text-white' : 'text-[#06295A]'
                         }`}
                       >
@@ -724,60 +712,6 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
             </div>
           </div>
         )}
-
-        {/* Toolbar & Filters */}
-        <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
-            <div className="relative flex-1 min-w-[200px] max-w-xs">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar arquivo, placa ou observação..."
-                className="w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:border-[#1565D8] focus:outline-none"
-              />
-            </div>
-
-            <select
-              value={plateFilter}
-              onChange={(e) => setPlateFilter(e.target.value)}
-              aria-label="Filtrar por placa"
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-[#1565D8] focus:outline-none"
-            >
-              <option value="Todas">Todas as Placas</option>
-              <option value="GERAL">GERAL (Frota / Empresa)</option>
-              {sortedVehicles.map((v) => (
-                <option key={v.id} value={v.plate}>
-                  {v.plate} — {v.manufacturerModel}
-                </option>
-              ))}
-            </select>
-
-            <button
-              type="button"
-              onClick={() =>
-                setSelectedFolder((prev) => (prev === 'ALL' ? 'ANTT' : 'ALL'))
-              }
-              className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors cursor-pointer ${
-                selectedFolder === 'ALL'
-                  ? 'bg-[#0B3C7D] border-[#0B3C7D] text-white'
-                  : 'bg-white border-slate-200 text-slate-600 hover:text-[#06295A] hover:border-[#1565D8]'
-              }`}
-            >
-              {selectedFolder === 'ALL' ? 'Exibindo Todas as Pastas' : 'Ver Todas as Pastas'}
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => quickFileInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#1565D8]/40 bg-blue-50/70 hover:bg-blue-100/70 text-[#0B3C7D] text-xs font-semibold transition-colors cursor-pointer"
-          >
-            <UploadCloud className="w-3.5 h-3.5" />
-            <span>Envio Rápido (Múltiplos Arquivos)</span>
-          </button>
-        </div>
 
         {/* Workspace Content */}
         {activeTab === 'files' ? (
@@ -1035,7 +969,6 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            setPlateFilter(v.plate);
                             setActiveTab('files');
                           }}
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-[0.71rem] font-semibold hover:bg-emerald-100 cursor-pointer"

@@ -124,7 +124,7 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
         kicker: '1.2.3 · QUALIDADE E SEGURANÇA',
         title: '1.2.3 LISTA DE REQUISITOS - QUALIDADE E SEGURANÇA',
         subtitle:
-          'Check de Segurança mensal (Entrega, Puxada, Armazém) e Blitz de Entrega rápida (55 itens)',
+          'Check de Segurança mensal e Blitz rápidas (Entrega, Puxada e Empilhadeira)',
         countLabel: `${String(safetyChecksCount).padStart(2, '0')} placas`,
       },
     ],
@@ -264,7 +264,7 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
                 )}
               </div>
 
-              <h2 className="font-display text-lg sm:text-[1.42rem] font-extrabold text-white tracking-tight leading-tight mt-0.5">
+              <h2 className="font-display text-lg sm:text-[1.42rem] font-bold text-white tracking-[0.015em] [word-spacing:0.14em] leading-tight mt-0.5">
                 {heroTitle}
               </h2>
 

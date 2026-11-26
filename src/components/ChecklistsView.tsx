@@ -7,7 +7,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { ChecklistKey, Vehicle } from '../types/fleet';
-import { CHECKLIST_ITEMS } from '../data/fleetSeed';
+import { CHECKLIST_ITEMS, normalizeAssetUrl } from '../data/fleetSeed';
 import { VehicleStatusBadge } from './StatusBadges';
 
 interface ChecklistsViewProps {
@@ -163,7 +163,7 @@ export const ChecklistsView: React.FC<ChecklistsViewProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-4">
                 <img
-                  src={activeVehicle.photoUrl}
+                  src={normalizeAssetUrl(activeVehicle.photoUrl)}
                   alt={activeVehicle.manufacturerModel}
                   referrerPolicy="no-referrer"
                   className="w-24 h-16 rounded-lg object-cover border border-slate-200 shrink-0"

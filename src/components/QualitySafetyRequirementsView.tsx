@@ -26,13 +26,16 @@ import {
   parseSafetyCheckRow,
 } from '../data/safetyCheckSeed';
 import { PLATFORM_CARD_GRID_CLASS, PlatformCard } from './PlatformCard';
-import { BlitzEntregaWorkspace } from './BlitzEntregaWorkspace';
+import { BlitzWorkspace } from './BlitzWorkspace';
+import { BLITZ_CATALOG } from '../data/blitzCatalog';
 
 type SheetTab = SafetyCheckOperation;
 
 interface QualitySafetyRequirementsViewProps {
   records: LegalizedDocumentRecord[];
   blitzRecords: LegalizedDocumentRecord[];
+  blitzPuxadaRecords: LegalizedDocumentRecord[];
+  blitzEmpilhadeiraRecords: LegalizedDocumentRecord[];
   vehicles: Vehicle[];
   onAddRecords: (items: LegalizedDocumentRecord[]) => void;
   onUpdateRecord: (id: string, patch: Partial<LegalizedDocumentRecord>) => void;
@@ -97,13 +100,19 @@ export const QualitySafetyRequirementsView: React.FC<
 > = ({
   records,
   blitzRecords,
+  blitzPuxadaRecords,
+  blitzEmpilhadeiraRecords,
   vehicles,
   onAddRecords,
   onUpdateRecord,
   onDeleteRecord,
 }) => {
   const [openedSection, setOpenedSection] = useState<
-    'check-seguranca' | 'blitz-entrega' | null
+    | 'check-seguranca'
+    | 'blitz-entrega'
+    | 'blitz-puxada'
+    | 'blitz-empilhadeira'
+    | null
   >(null);
   const [activeTab, setActiveTab] = useState<SheetTab>('ENTREGA');
   const [search, setSearch] = useState('');
@@ -246,6 +255,7 @@ export const QualitySafetyRequirementsView: React.FC<
   };
 
   const handleSyncPercentToSafetyCheck = (
+    operation: SafetyCheckOperation,
     plate: string,
     monthKey: SafetyCheckMonthKey,
     percent: number
@@ -256,12 +266,18 @@ export const QualitySafetyRequirementsView: React.FC<
 
     const clamped = Math.max(0, Math.min(100, Math.round(percent)));
     const nowDate = new Date().toLocaleDateString('pt-BR');
+    const opSlug =
+      operation === 'PUXADA'
+        ? 'puxada'
+        : operation === 'ARMAZÉM'
+          ? 'armazem'
+          : 'entrega';
 
     if (records.length === 0 && !userClearedBase) {
       let matchedSeed = false;
       const docs = SAFETY_CHECK_SEED_ROWS.map((seedRow) => {
         const seedNorm = seedRow.plate.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-        if (seedRow.operation === 'ENTREGA' && seedNorm === normPlate) {
+        if (seedRow.operation === operation && seedNorm === normPlate) {
           matchedSeed = true;
           return buildSafetyCheckRecord(
             {
@@ -279,8 +295,8 @@ export const QualitySafetyRequirementsView: React.FC<
         docs.push(
           buildSafetyCheckRecord(
             {
-              id: `cs-entrega-${plateSlug}-${Date.now().toString(36)}`,
-              operation: 'ENTREGA',
+              id: `cs-${opSlug}-${plateSlug}-${Date.now().toString(36)}`,
+              operation,
               unit: 'GUARABIRA',
               plate: cleanPlate,
               months: { [monthKey]: clamped },
@@ -294,14 +310,14 @@ export const QualitySafetyRequirementsView: React.FC<
       return;
     }
 
-    const existingEntrega = resolvedRows.find(
+    const existingRow = resolvedRows.find(
       (r) =>
-        r.row.operation === 'ENTREGA' &&
+        r.row.operation === operation &&
         r.row.plate.replace(/[^A-Z0-9]/gi, '').toUpperCase() === normPlate
     );
 
-    if (existingEntrega) {
-      persistRowUpdate(existingEntrega.row.id, (row) => ({
+    if (existingRow) {
+      persistRowUpdate(existingRow.row.id, (row) => ({
         ...row,
         months: { ...row.months, [monthKey]: clamped },
       }));
@@ -313,8 +329,8 @@ export const QualitySafetyRequirementsView: React.FC<
     onAddRecords([
       buildSafetyCheckRecord(
         {
-          id: `cs-entrega-${plateSlug}-${Date.now().toString(36)}`,
-          operation: 'ENTREGA',
+          id: `cs-${opSlug}-${plateSlug}-${Date.now().toString(36)}`,
+          operation,
           unit: 'GUARABIRA',
           plate: cleanPlate,
           months: { [monthKey]: clamped },
@@ -562,7 +578,7 @@ export const QualitySafetyRequirementsView: React.FC<
               <div className="text-[0.68rem] font-bold uppercase tracking-wider text-blue-200/90">
                 1.2.3 · QUALIDADE E SEGURANÇA
               </div>
-              <h2 className="font-display text-base sm:text-lg font-extrabold tracking-tight">
+              <h2 className="font-display text-base sm:text-lg font-bold tracking-[0.015em] [word-spacing:0.12em]">
                 1.2.3 LISTA DE REQUISITOS - QUALIDADE E SEGURANÇA
               </h2>
               <p className="text-xs text-blue-100/85 mt-0.5">
@@ -572,7 +588,12 @@ export const QualitySafetyRequirementsView: React.FC<
             <div className="flex items-center gap-2 shrink-0">
               <div className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-xs font-mono-tabular font-bold">
                 {String(overallMetrics.totalRows).padStart(2, '0')} placas ·{' '}
-                {String(blitzRecords.length).padStart(2, '0')} blitz ·{' '}
+                {String(
+                  blitzRecords.length +
+                    blitzPuxadaRecords.length +
+                    blitzEmpilhadeiraRecords.length
+                ).padStart(2, '0')}{' '}
+                blitz ·{' '}
                 {overallMetrics.avgYtd !== null
                   ? `YTD ${formatPctIntOrDecimal(overallMetrics.avgYtd)}`
                   : 'YTD —'}
@@ -599,12 +620,52 @@ export const QualitySafetyRequirementsView: React.FC<
                 subtitle="Checklist rápido de 55 itens (Cabine, Frente, Baú, Traseira, Pneus e Elétrica) com cálculo de %"
                 onClick={() => setOpenedSection('blitz-entrega')}
               />
+              <PlatformCard
+                kicker="1.2.3.3 · BLITZ DE PUXADA"
+                countLabel={`${String(blitzPuxadaRecords.length).padStart(2, '0')} blitz`}
+                title="BLITZ DE PUXADA"
+                subtitle="Checklist rápido de 52 itens (Cabine, Frente, Carreta/Sider, Traseira, Pneus e Elétrica) com cálculo de %"
+                onClick={() => setOpenedSection('blitz-puxada')}
+              />
+              <PlatformCard
+                kicker="1.2.3.4 · BLITZ EMPILHADEIRA"
+                countLabel={`${String(blitzEmpilhadeiraRecords.length).padStart(2, '0')} blitz`}
+                title="BLITZ EMPILHADEIRA"
+                subtitle="Checklist rápido de 36 itens (Segurança, Torre/Garfos, Sinalização, Pneus/Rodas, Visual e Elétrica)"
+                onClick={() => setOpenedSection('blitz-empilhadeira')}
+              />
             </div>
           </section>
         </>
       ) : openedSection === 'blitz-entrega' ? (
-        <BlitzEntregaWorkspace
+        <BlitzWorkspace
+          key="blitz-entrega"
+          config={BLITZ_CATALOG.entrega}
           records={blitzRecords}
+          vehicles={vehicles}
+          onBack={() => setOpenedSection(null)}
+          onAddRecords={onAddRecords}
+          onUpdateRecord={onUpdateRecord}
+          onDeleteRecord={onDeleteRecord}
+          onSyncPercentToSafetyCheck={handleSyncPercentToSafetyCheck}
+        />
+      ) : openedSection === 'blitz-puxada' ? (
+        <BlitzWorkspace
+          key="blitz-puxada"
+          config={BLITZ_CATALOG.puxada}
+          records={blitzPuxadaRecords}
+          vehicles={vehicles}
+          onBack={() => setOpenedSection(null)}
+          onAddRecords={onAddRecords}
+          onUpdateRecord={onUpdateRecord}
+          onDeleteRecord={onDeleteRecord}
+          onSyncPercentToSafetyCheck={handleSyncPercentToSafetyCheck}
+        />
+      ) : openedSection === 'blitz-empilhadeira' ? (
+        <BlitzWorkspace
+          key="blitz-empilhadeira"
+          config={BLITZ_CATALOG.empilhadeira}
+          records={blitzEmpilhadeiraRecords}
           vehicles={vehicles}
           onBack={() => setOpenedSection(null)}
           onAddRecords={onAddRecords}

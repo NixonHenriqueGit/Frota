@@ -371,7 +371,7 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
         {/* Header Bar */}
         <div className="px-4 py-3 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#1256BA] text-white flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-display text-sm sm:text-base font-extrabold tracking-tight truncate">
+            <h2 className="font-display text-sm sm:text-base font-bold tracking-[0.015em] [word-spacing:0.12em] truncate">
               1.2.1 PADRÕES DE EQUIPAMENTOS
             </h2>
             <p className="text-[0.74rem] text-blue-100/90 truncate">
@@ -624,7 +624,7 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-3.5 bg-gradient-to-r from-[#072B5E] to-[#1256BA] text-white flex items-center justify-between">
               <div>
-                <h3 className="font-display text-sm font-extrabold tracking-tight">
+                <h3 className="font-display text-sm font-bold tracking-[0.01em] [word-spacing:0.1em]">
                   Anexar Documento — 1.2.1 Padrões de Equipamentos
                 </h3>
                 <p className="text-[0.72rem] text-blue-100/90">
@@ -742,7 +742,7 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px] flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-3.5 bg-gradient-to-r from-[#072B5E] to-[#1256BA] text-white flex items-center justify-between">
-              <h3 className="font-display text-sm font-extrabold tracking-tight truncate pr-3">
+              <h3 className="font-display text-sm font-bold tracking-[0.01em] [word-spacing:0.1em] truncate pr-3">
                 Editar — {editingRecord.fileName}
               </h3>
               <button

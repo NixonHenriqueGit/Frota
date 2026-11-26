@@ -651,7 +651,7 @@ export const ComplianceCheckView: React.FC<ComplianceCheckViewProps> = ({
         {/* Navy Header Bar */}
         <div className="px-4 py-3 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#1565D8] text-white flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-display text-[0.98rem] font-extrabold tracking-tight text-white">
+            <h2 className="font-display text-[0.98rem] font-bold tracking-[0.015em] [word-spacing:0.12em] text-white">
               1.1.5 CHECK DOCUMENTAÇÃO FORA DE CONFORMIDADE — {selectedMonth}
             </h2>
             <p className="text-[0.74rem] text-blue-100/85 mt-0.5">

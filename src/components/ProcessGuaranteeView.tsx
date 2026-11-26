@@ -81,7 +81,7 @@ export const ProcessGuaranteeView: React.FC = () => {
             <ShieldCheck className="w-4 h-4 text-[#38BDF8]" />
             <span>DPO Ambev — Pilar Frota & Logística</span>
           </div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">
+          <h2 className="font-display text-xl font-bold tracking-[0.01em] [word-spacing:0.1em]">
             1.1.3 Processo para Garantir Documentação
           </h2>
           <p className="text-xs text-blue-100/95 mt-1 max-w-2xl leading-relaxed">
