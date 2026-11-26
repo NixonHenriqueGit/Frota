@@ -95,7 +95,7 @@ export default function App() {
   const [firestoreLoaded, setFirestoreLoaded] = useState(false);
 
   const [activeSection, setActiveSection] = useState<NavSection>('bloco-1');
-  const [bloco1Group, setBloco1Group] = useState<'1.1' | '1.2' | null>(null);
+  const [bloco1Group, setBloco1Group] = useState<'1.1' | '1.2' | '1.3' | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
 
@@ -307,7 +307,8 @@ export default function App() {
           d.folder !== 'BLITZ DE PUXADA' &&
           d.folder !== 'BLITZ EMPILHADEIRA' &&
           d.folder !== 'CAMINHÕES' &&
-          d.folder !== 'PUXADA'
+          d.folder !== 'PUXADA' &&
+          d.folder !== 'MELHORIA PROGRESSIVA'
       ),
     [legalizedDocs]
   );
@@ -354,6 +355,11 @@ export default function App() {
 
   const puxadaCheckDocs = useMemo(
     () => legalizedDocs.filter((d) => d.folder === 'PUXADA'),
+    [legalizedDocs]
+  );
+
+  const melhoriaProgressivaDocs = useMemo(
+    () => legalizedDocs.filter((d) => d.folder === 'MELHORIA PROGRESSIVA'),
     [legalizedDocs]
   );
 
@@ -688,6 +694,7 @@ export default function App() {
                       ? safetyCheckDocs.length
                       : SAFETY_CHECK_SEED_ROWS.length
                   }
+                  progressiveImprovementCount={melhoriaProgressivaDocs.length}
                   activeGroup={bloco1Group}
                   onSelectGroup={setBloco1Group}
                 />
@@ -758,6 +765,24 @@ export default function App() {
                   onAddRecords={handleAddLegalizedDocs}
                   onUpdateRecord={handleUpdateLegalizedDoc}
                   onDeleteRecord={handleDeleteLegalizedDoc}
+                />
+              )}
+
+              {activeSection === 'melhoria-progressiva' && (
+                <EquipmentStandardsView
+                  records={melhoriaProgressivaDocs}
+                  onAddRecords={handleAddLegalizedDocs}
+                  onUpdateRecord={handleUpdateLegalizedDoc}
+                  onDeleteRecord={handleDeleteLegalizedDoc}
+                  folder="MELHORIA PROGRESSIVA"
+                  idPrefix="mp-"
+                  headerTitle="1.3.2 MELHORIA PROGRESSIVA"
+                  headerSubtitle="DPO - Pilar Frota - Padrão Gestão de Checklists e documentos oficiais de melhoria progressiva"
+                  modalHeaderTitle="Anexar Documento — 1.3.2 Melhoria Progressiva"
+                  dropHeadline="Arraste e solte o arquivo Word (.docx) ou PDF aqui para salvar em 1.3.2 MELHORIA PROGRESSIVA"
+                  emptyTitle="Nenhum documento anexado em 1.3.2 Melhoria Progressiva"
+                  summaryAriaLabel="Resumo de Melhoria Progressiva"
+                  defaultNotesPlaceholder="Ex.: DPO - Pilar Frota - Padrão Gestão de Checklists..."
                 />
               )}
 

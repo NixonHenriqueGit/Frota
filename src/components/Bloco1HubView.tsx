@@ -12,17 +12,21 @@ interface Bloco1HubViewProps {
   equipmentCount: number;
   visualStandardsCount: number;
   safetyChecksCount: number;
-  activeGroup: '1.1' | '1.2' | null;
-  onSelectGroup: (group: '1.1' | '1.2' | null) => void;
+  progressiveImprovementCount: number;
+  activeGroup: '1.1' | '1.2' | '1.3' | null;
+  onSelectGroup: (group: '1.1' | '1.2' | '1.3' | null) => void;
 }
 
 interface ModuleCardConfig {
-  id: NavSection;
-  group: '1.1' | '1.2';
+  id: NavSection | 'checklist-digital';
+  group: '1.1' | '1.2' | '1.3';
   kicker: string;
   title: string;
   subtitle: string;
   countLabel: string;
+  statusLabel?: string;
+  actionLabel?: string;
+  externalUrl?: string;
 }
 
 const GROUP_1_1_TITLE = '1.1 DOCUMENTOS E AUTORIZAÇÕES';
@@ -33,6 +37,10 @@ const GROUP_1_2_TITLE = '1.2 PADRÕES DE FROTA';
 const GROUP_1_2_SUBTITLE =
   'Padrões de equipamentos de manuseio, padrões visuais de bloqueio e lista de requisitos de qualidade e segurança';
 
+const GROUP_1_3_TITLE = '1.3 CHECK LIST DA FROTA';
+const GROUP_1_3_SUBTITLE =
+  'Inspeções preventivas, verificação diária e conformidade operacional dos veículos da frota';
+
 export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
   onSelectSection,
   legalizedCount,
@@ -42,6 +50,7 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
   equipmentCount,
   visualStandardsCount,
   safetyChecksCount,
+  progressiveImprovementCount,
   activeGroup,
   onSelectGroup,
 }) => {
@@ -131,7 +140,38 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
     [equipmentCount, visualStandardsCount, safetyChecksCount]
   );
 
-  const allModules = useMemo(() => [...modules11, ...modules12], [modules11, modules12]);
+  const modules13: ModuleCardConfig[] = useMemo(
+    () => [
+      {
+        id: 'checklist-digital',
+        group: '1.3',
+        kicker: '1.3.1 · PORTAL EXTERNO',
+        title: '1.3.1 CHECKLIST DIGITAL',
+        subtitle:
+          'Painel de checklists de manutenção no Gestran (abre em nova guia)',
+        countLabel: 'Gestran',
+        statusLabel: 'Acesso externo',
+        actionLabel: 'Abrir site',
+        externalUrl:
+          'https://app.gestran.com.br/apps/manutencao/checklist/dashboard',
+      },
+      {
+        id: 'melhoria-progressiva',
+        group: '1.3',
+        kicker: '1.3.2 · PADRÃO DPO / CHECK',
+        title: '1.3.2 MELHORIA PROGRESSIVA',
+        subtitle:
+          'Padrão Gestão de Checklists DPO - Pilar Frota e documentos de melhoria contínua (Word / PDF)',
+        countLabel: `${String(progressiveImprovementCount).padStart(2, '0')} arq.`,
+      },
+    ],
+    [progressiveImprovementCount]
+  );
+
+  const allModules = useMemo(
+    () => [...modules11, ...modules12, ...modules13],
+    [modules11, modules12, modules13]
+  );
 
   const query = search.trim().toLowerCase();
 
@@ -140,19 +180,22 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
       ? modules11
       : activeGroup === '1.2'
         ? modules12
-        : allModules;
+        : activeGroup === '1.3'
+          ? modules13
+          : allModules;
 
   const filteredModules = useMemo(() => {
     if (!query) return currentGroupModules;
     if (activeGroup === '1.1' && GROUP_1_1_TITLE.toLowerCase().includes(query)) return modules11;
     if (activeGroup === '1.2' && GROUP_1_2_TITLE.toLowerCase().includes(query)) return modules12;
+    if (activeGroup === '1.3' && GROUP_1_3_TITLE.toLowerCase().includes(query)) return modules13;
     return currentGroupModules.filter(
       (m) =>
         m.title.toLowerCase().includes(query) ||
         m.kicker.toLowerCase().includes(query) ||
         m.subtitle.toLowerCase().includes(query)
     );
-  }, [currentGroupModules, activeGroup, modules11, modules12, query]);
+  }, [currentGroupModules, activeGroup, modules11, modules12, modules13, query]);
 
   const rootGroupCards = useMemo(
     () => [
@@ -172,8 +215,16 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
         countLabel: `${String(modules12.length).padStart(2, '0')} móds.`,
         statusLabel: 'Módulo ativo',
       },
+      {
+        id: '1.3' as const,
+        kicker: '1.3 · BLOCO 1',
+        title: GROUP_1_3_TITLE,
+        subtitle: GROUP_1_3_SUBTITLE,
+        countLabel: `${String(modules13.length).padStart(2, '0')} móds.`,
+        statusLabel: 'Módulo ativo',
+      },
     ],
-    [modules11.length, modules12.length]
+    [modules11.length, modules12.length, modules13.length]
   );
 
   const matchingRootGroups = useMemo(() => {
@@ -195,21 +246,27 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
       ? GROUP_1_1_TITLE
       : activeGroup === '1.2'
         ? GROUP_1_2_TITLE
-        : 'BLOCO 1 — DOCUMENTOS DA FROTA';
+        : activeGroup === '1.3'
+          ? GROUP_1_3_TITLE
+          : 'BLOCO 1 — DOCUMENTOS DA FROTA';
 
   const heroSubtitle =
     activeGroup === '1.1'
       ? 'Selecione um módulo abaixo para acessar os documentos, controles e processos da frota.'
       : activeGroup === '1.2'
         ? 'Selecione um módulo abaixo para acessar os padrões técnicos e equipamentos da frota.'
-        : 'Selecione uma categoria abaixo para abrir os módulos do Bloco 1.';
+        : activeGroup === '1.3'
+          ? 'Selecione um módulo abaixo para abrir os checklists e inspeções da frota.'
+          : 'Selecione uma categoria abaixo para abrir os módulos do Bloco 1.';
 
   const heroPlaceholder =
     activeGroup === '1.1'
       ? 'Filtrar em 1.1...'
       : activeGroup === '1.2'
         ? 'Filtrar em 1.2...'
-        : 'Filtrar no Bloco 1...';
+        : activeGroup === '1.3'
+          ? 'Filtrar em 1.3...'
+          : 'Filtrar no Bloco 1...';
 
   return (
     <div className="flex-1 flex flex-col gap-4 py-1">
@@ -258,7 +315,7 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
                       ·
                     </span>
                     <span className="font-mono-tabular text-blue-100/90">
-                      02 grupos · {allModules.length} módulos
+                      03 grupos · {allModules.length} módulos
                     </span>
                   </>
                 )}
@@ -320,19 +377,43 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
         </section>
       ) : filteredModules.length === 0 ? (
         <div className="rounded-xl bg-white border border-slate-200/90 p-10 text-center shadow-[0_2px_10px_rgba(6,41,90,0.04)]">
-          <p className="text-sm font-semibold text-[#06295A]">
-            Nenhum módulo encontrado para &ldquo;{search}&rdquo;.
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            Tente buscar pelo código (1.1, 1.2, 1.1.1 a 1.1.5, 1.2.1 a 1.2.3) ou pelo nome do módulo.
-          </p>
-          <button
-            type="button"
-            onClick={() => setSearch('')}
-            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B3C7D] text-white text-xs font-semibold hover:bg-[#1256BA] transition-colors cursor-pointer"
-          >
-            Limpar filtro
-          </button>
+          {query ? (
+            <>
+              <p className="text-sm font-semibold text-[#06295A]">
+                Nenhum módulo encontrado para &ldquo;{search}&rdquo;.
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Tente buscar pelo código (1.1, 1.2, 1.3, 1.1.1 a 1.1.5, 1.2.1 a 1.2.3) ou pelo nome do módulo.
+              </p>
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B3C7D] text-white text-xs font-semibold hover:bg-[#1256BA] transition-colors cursor-pointer"
+              >
+                Limpar filtro
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-[#06295A]">
+                {heroTitle} — Em preparação
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Nenhum submódulo adicionado ainda nesta aba.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectGroup(null);
+                  setSearch('');
+                }}
+                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B3C7D] text-white text-xs font-semibold hover:bg-[#1256BA] transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Voltar ao Bloco 1</span>
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <section aria-label={heroTitle}>
@@ -344,10 +425,17 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
                 countLabel={mod.countLabel}
                 title={mod.title}
                 subtitle={mod.subtitle}
-                onClick={() => {
-                  onSelectGroup(mod.group);
-                  onSelectSection(mod.id);
-                }}
+                statusLabel={mod.statusLabel}
+                actionLabel={mod.actionLabel}
+                externalUrl={mod.externalUrl}
+                onClick={
+                  mod.externalUrl
+                    ? undefined
+                    : () => {
+                        onSelectGroup(mod.group);
+                        onSelectSection(mod.id as NavSection);
+                      }
+                }
               />
             ))}
           </div>

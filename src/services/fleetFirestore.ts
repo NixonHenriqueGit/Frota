@@ -107,6 +107,7 @@ const VALID_LEGALIZED_FOLDERS = new Set<LegalizedFolderName>([
   'BLITZ EMPILHADEIRA',
   'CAMINHÕES',
   'PUXADA',
+  'MELHORIA PROGRESSIVA',
 ]);
 const EQUIPMENT_STANDARD_ID_PREFIX = 'equip-';
 const VISUAL_STANDARD_ID_PREFIX = 'vp-';
@@ -116,6 +117,7 @@ const BLITZ_PUXADA_ID_PREFIX = 'bp-';
 const BLITZ_EMPILHADEIRA_ID_PREFIX = 'bm-';
 const CAMINHOES_ID_PREFIX = 'cm-';
 const PUXADA_ID_PREFIX = 'px-';
+const MELHORIA_PROGRESSIVA_ID_PREFIX = 'mp-';
 
 function toFirestoreLegalizedFolder(folder: LegalizedFolderName): string {
   if (
@@ -126,7 +128,8 @@ function toFirestoreLegalizedFolder(folder: LegalizedFolderName): string {
     folder === 'BLITZ DE PUXADA' ||
     folder === 'BLITZ EMPILHADEIRA' ||
     folder === 'CAMINHÕES' ||
-    folder === 'PUXADA'
+    folder === 'PUXADA' ||
+    folder === 'MELHORIA PROGRESSIVA'
   ) {
     return 'ANTT';
   }
@@ -584,9 +587,11 @@ export function mapDocToLegalizedDoc(data: Record<string, unknown>): LegalizedDo
                 ? 'CAMINHÕES'
                 : id.startsWith(PUXADA_ID_PREFIX)
                   ? 'PUXADA'
-                  : VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
-                    ? (data.folder as LegalizedFolderName)
-                    : 'ANTT';
+                  : id.startsWith(MELHORIA_PROGRESSIVA_ID_PREFIX)
+                    ? 'MELHORIA PROGRESSIVA'
+                    : VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
+                      ? (data.folder as LegalizedFolderName)
+                      : 'ANTT';
   const rawSub = data.subfolder as CrlvSubfolderName | undefined;
   const subfolder =
     folder === 'CRLV' && rawSub && VALID_CRLV_SUBFOLDERS.has(rawSub) ? rawSub : '';

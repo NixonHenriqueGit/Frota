@@ -14,17 +14,26 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { LegalizedDocumentRecord } from '../types/fleet';
+import { LegalizedDocumentRecord, LegalizedFolderName } from '../types/fleet';
 import { DocumentPreviewContent } from './DocumentPreviewContent';
 import { MAX_LEGALIZED_FILE_BYTES } from '../services/fleetFirestore';
 
-const EQUIPMENT_FOLDER = 'PADRÕES DE EQUIPAMENTOS' as const;
+const DEFAULT_EQUIPMENT_FOLDER: LegalizedFolderName = 'PADRÕES DE EQUIPAMENTOS';
 
 interface EquipmentStandardsViewProps {
   records: LegalizedDocumentRecord[];
   onAddRecords: (items: LegalizedDocumentRecord[]) => void;
   onUpdateRecord: (id: string, patch: Partial<LegalizedDocumentRecord>) => void;
   onDeleteRecord: (id: string) => void;
+  folder?: LegalizedFolderName;
+  idPrefix?: string;
+  headerTitle?: string;
+  headerSubtitle?: string;
+  modalHeaderTitle?: string;
+  dropHeadline?: string;
+  emptyTitle?: string;
+  summaryAriaLabel?: string;
+  defaultNotesPlaceholder?: string;
 }
 
 function formatBytes(bytes: number): string {
@@ -82,6 +91,15 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
   onAddRecords,
   onUpdateRecord,
   onDeleteRecord,
+  folder = DEFAULT_EQUIPMENT_FOLDER,
+  idPrefix = 'equip-',
+  headerTitle = '1.2.1 PADRÕES DE EQUIPAMENTOS',
+  headerSubtitle = 'Padrão de Equipamentos de Manuseio, diretrizes operacionais e documentos técnicos da frota',
+  modalHeaderTitle = 'Anexar Documento — 1.2.1 Padrões de Equipamentos',
+  dropHeadline = 'Arraste e solte o arquivo aqui para salvar em 1.2.1 PADRÕES DE EQUIPAMENTOS',
+  emptyTitle = 'Nenhum documento anexado em 1.2.1 Padrões de Equipamentos',
+  summaryAriaLabel = 'Resumo de Padrões de Equipamentos',
+  defaultNotesPlaceholder = 'Ex.: Padrão oficial de equipamentos de manuseio...',
 }) => {
   const [search, setSearch] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -149,8 +167,8 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
       }
       const dataUrl = await readFileAsDataUrl(file);
       created.push({
-        id: `equip-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
-        folder: EQUIPMENT_FOLDER,
+        id: `${idPrefix}${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+        folder,
         subfolder: '',
         fileName: file.name,
         fileType: file.type || 'application/octet-stream',
@@ -201,8 +219,8 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
         }
         const dataUrl = await readFileAsDataUrl(file);
         created.push({
-          id: `equip-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
-          folder: EQUIPMENT_FOLDER,
+          id: `${idPrefix}${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+          folder,
           subfolder: '',
           fileName: file.name,
           fileType: file.type || 'application/octet-stream',
@@ -319,7 +337,7 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
 
       {/* Compact Summary Strip */}
       <section
-        aria-label="Resumo de Padrões de Equipamentos"
+        aria-label={summaryAriaLabel}
         className="grid grid-cols-1 sm:grid-cols-3 gap-2.5"
       >
         <div className="rounded-xl bg-white border border-slate-200/90 px-4 py-3 shadow-[0_1px_4px_rgba(15,23,42,0.04)] flex items-center justify-between gap-3">
@@ -372,10 +390,10 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
         <div className="px-4 py-3 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#1256BA] text-white flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="font-display text-sm sm:text-base font-bold tracking-[0.015em] [word-spacing:0.12em] truncate">
-              1.2.1 PADRÕES DE EQUIPAMENTOS
+              {headerTitle}
             </h2>
             <p className="text-[0.74rem] text-blue-100/90 truncate">
-              Padrão de Equipamentos de Manuseio, diretrizes operacionais e documentos técnicos da frota
+              {headerSubtitle}
             </p>
           </div>
 
@@ -455,7 +473,7 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-[#06295A] truncate">
-                  Arraste e solte o arquivo aqui para salvar em 1.2.1 PADRÕES DE EQUIPAMENTOS
+                  {dropHeadline}
                 </p>
                 <p className="text-[0.72rem] text-slate-500 truncate">
                   Suporta Word (.docx/.doc), PDF, Excel e imagens até 15 MB — salvo diretamente no banco de dados.
@@ -474,7 +492,7 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
                 <FileText className="w-6 h-6" />
               </div>
               <p className="text-sm font-bold text-[#06295A]">
-                Nenhum documento anexado em 1.2.1 Padrões de Equipamentos
+                {emptyTitle}
               </p>
               <p className="text-xs text-slate-500 mt-1 max-w-md">
                 Arraste seu documento Word (.docx) ou PDF na área acima, ou clique em &ldquo;Anexar Documento&rdquo;.
@@ -625,7 +643,7 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
             <div className="px-5 py-3.5 bg-gradient-to-r from-[#072B5E] to-[#1256BA] text-white flex items-center justify-between">
               <div>
                 <h3 className="font-display text-sm font-bold tracking-[0.01em] [word-spacing:0.1em]">
-                  Anexar Documento — 1.2.1 Padrões de Equipamentos
+                  {modalHeaderTitle}
                 </h3>
                 <p className="text-[0.72rem] text-blue-100/90">
                   Envie arquivos Word (.docx/.doc), PDF, Excel ou imagens (até 15 MB)
@@ -711,7 +729,7 @@ export const EquipmentStandardsView: React.FC<EquipmentStandardsViewProps> = ({
                   rows={2}
                   value={draftNotes}
                   onChange={(e) => setDraftNotes(e.target.value)}
-                  placeholder="Ex.: Padrão oficial de equipamentos de manuseio..."
+                  placeholder={defaultNotesPlaceholder}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900 focus:border-[#1565D8] focus:outline-none resize-none"
                 />
               </div>

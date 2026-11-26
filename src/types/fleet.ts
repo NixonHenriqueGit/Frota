@@ -163,7 +163,8 @@ export type LegalizedFolderName =
   | 'BLITZ DE PUXADA'
   | 'BLITZ EMPILHADEIRA'
   | 'CAMINHÕES'
-  | 'PUXADA';
+  | 'PUXADA'
+  | 'MELHORIA PROGRESSIVA';
 
 export type BlitzKind = 'entrega' | 'puxada' | 'empilhadeira';
 
@@ -377,6 +378,7 @@ export type NavSection =
   | 'padroes-equipamentos'
   | 'padroes-visuais'
   | 'lista-requisitos'
+  | 'melhoria-progressiva'
   | 'visao-geral'
   | 'cadastro'
   | 'documentos'
