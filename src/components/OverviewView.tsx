@@ -1,42 +1,22 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
+  AlertTriangle,
   ArrowRight,
-  BadgeCheck,
-  BarChart3,
-  Building2,
-  Calendar,
-  CalendarCheck,
   Camera,
-  CarFront,
-  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  CircleDollarSign,
-  Droplets,
-  FileCheck2,
+  ClipboardCheck,
+  Edit3,
   FileText,
-  Filter,
-  Fuel,
-  Gauge,
-  Hash,
-  KeyRound,
-  LayoutGrid,
   Maximize2,
-  Package,
-  PieChart,
   RotateCcw,
   Search,
-  ShieldCheck,
-  TrendingUp,
   Truck,
-  UserCheck,
   X,
-  XCircle,
 } from 'lucide-react';
 import {
   ChecklistKey,
-  Company,
   DashboardFilters,
   NavSection,
   Sector,
@@ -48,15 +28,12 @@ import {
 } from '../types/fleet';
 import {
   CATEGORY_META,
-  CHECKLIST_ITEMS,
   SECTOR_META,
+  getChecklistItemsForCategory,
   resolveVehiclePhoto,
 } from '../data/fleetSeed';
-import { formatCurrencyBRL, formatKmOrHours } from '../utils/formatters';
-import { sanitizeFleetAgeYearMonths } from '../utils/fleetSpreadsheet';
-import { DonutChart } from './DonutChart';
-import { SectorBarChart } from './SectorBarChart';
-import { EvidenceStatusBadge, VehicleStatusBadge } from './StatusBadges';
+import { formatKmOrHours } from '../utils/formatters';
+import { VehicleStatusBadge } from './StatusBadges';
 
 interface OverviewViewProps {
   vehicles: Vehicle[];
@@ -75,14 +52,6 @@ interface OverviewViewProps {
   onLoadDefaultFleet?: () => void;
 }
 
-const PREVIEW_CHECKLIST_KEYS: ChecklistKey[] = [
-  'chaveRoda',
-  'pneus',
-  'triangulo',
-  'extintor',
-  'sensorCinto',
-];
-
 export const OverviewView: React.FC<OverviewViewProps> = ({
   vehicles,
   documents,
@@ -91,7 +60,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   selectedVehicleId,
   onFiltersChange,
   onSelectVehicle,
-  onToggleChecklistItem,
   onNavigate,
   onEditVehicle,
   onUpdateVehiclePhoto,
@@ -99,10 +67,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onLoadDefaultFleet,
 }) => {
   const [page, setPage] = useState(1);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
-  const pageSize = 6;
+  const pageSize = 7;
 
   const handlePhotoUpload = (file: File, vehicleId: string) => {
     if (!onUpdateVehiclePhoto) return;
@@ -138,18 +105,15 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const filteredVehicles = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     return vehicles.filter((v) => {
-      if (filters.period === '30d' && v.periodBucket !== '30d') return false;
-      if (filters.period === '6m' && v.periodBucket === '12m') return false;
-      if (filters.company !== 'Todas' && v.company !== filters.company) return false;
       if (filters.sector !== 'Todos' && v.sector !== filters.sector) return false;
       if (filters.category !== 'Todos' && v.category !== filters.category) return false;
       if (filters.status !== 'Todos' && v.status !== filters.status) return false;
       if (q) {
-        const matchesVehicle =
+        return (
           v.plate.toLowerCase().includes(q) ||
           v.manufacturerModel.toLowerCase().includes(q) ||
-          v.sector.toLowerCase().includes(q);
-        if (!matchesVehicle) return false;
+          v.sector.toLowerCase().includes(q)
+        );
       }
       return true;
     });
@@ -166,32 +130,37 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     () => filteredVehicles.filter((v) => v.status === 'Ativo').length,
     [filteredVehicles]
   );
-  const stoppedCount = useMemo(
-    () => filteredVehicles.filter((v) => v.status === 'Parado').length,
-    [filteredVehicles]
+
+  const docAlertsCount = useMemo(
+    () => documents.filter((d) => d.status === 'Vencido' || d.status === 'A vencer').length,
+    [documents]
   );
+
   const checkedVehiclesCount = useMemo(
     () =>
       filteredVehicles.filter((v) =>
-        CHECKLIST_ITEMS.every((item) => Boolean(v.checklist[item.key]))
+        getChecklistItemsForCategory(v.category).every((item) =>
+          Boolean(v.checklist[item.key])
+        )
       ).length,
     [filteredVehicles]
   );
 
-  const activeRate =
-    filteredVehicles.length > 0
-      ? Math.round((activeCount / filteredVehicles.length) * 100)
-      : 0;
-  const stoppedRate =
-    filteredVehicles.length > 0
-      ? Math.round((stoppedCount / filteredVehicles.length) * 100)
-      : 0;
-  const checkedRate =
-    filteredVehicles.length > 0
-      ? Math.round((checkedVehiclesCount / filteredVehicles.length) * 100)
-      : 0;
+  const completeEvidencesCount = useMemo(
+    () => evidences.filter((e) => e.crlv && e.cnt && e.antt).length,
+    [evidences]
+  );
 
-  const donutData = useMemo(() => {
+  const sectorSummary = useMemo(() => {
+    const order: Sector[] = ['Distribuição', 'Vendas', 'Puxada', 'Armazém'];
+    return order.map((sector) => ({
+      sector,
+      count: vehicles.filter((v) => v.sector === sector).length,
+      color: SECTOR_META[sector].color,
+    }));
+  }, [vehicles]);
+
+  const categorySummary = useMemo(() => {
     const order: VehicleCategory[] = [
       'Caminhão',
       'Carga Semi-Reboque',
@@ -202,24 +171,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     return order.map((cat) => ({
       category: cat,
       label: CATEGORY_META[cat].pluralLabel,
-      count: filteredVehicles.filter((v) => v.category === cat).length,
-      color: CATEGORY_META[cat].color,
+      count: vehicles.filter((v) => v.category === cat).length,
     }));
-  }, [filteredVehicles]);
-
-  const sectorData = useMemo(() => {
-    const order: Sector[] = ['Distribuição', 'Vendas', 'Puxada', 'Armazém', 'Marketing'];
-    return order.map((sector) => ({
-      sector,
-      count: filteredVehicles.filter((v) => v.sector === sector).length,
-      color: SECTOR_META[sector].color,
-    }));
-  }, [filteredVehicles]);
-
-  const visibleEvidences = useMemo(() => {
-    const filteredIds = new Set(filteredVehicles.map((v) => v.id));
-    return evidences.filter((e) => filteredIds.has(e.vehicleId)).slice(0, 5);
-  }, [evidences, filteredVehicles]);
+  }, [vehicles]);
 
   const selectedVehicle = useMemo(() => {
     return (
@@ -241,9 +195,24 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     onSelectVehicle(filteredVehicles[nextIdx].id);
   };
 
+  const selectedVehicleChecklistStats = useMemo(() => {
+    if (!selectedVehicle) return { done: 0, total: 0, pct: 0 };
+    const items = getChecklistItemsForCategory(selectedVehicle.category);
+    const done = items.filter((item) => selectedVehicle.checklist[item.key]).length;
+    const total = items.length;
+    return {
+      done,
+      total,
+      pct: total > 0 ? Math.round((done / total) * 100) : 0,
+    };
+  }, [selectedVehicle]);
+
+  const selectedVehicleEvidence = useMemo(() => {
+    if (!selectedVehicle) return undefined;
+    return evidences.find((e) => e.vehicleId === selectedVehicle.id);
+  }, [evidences, selectedVehicle]);
+
   const hasActiveFilters =
-    filters.period !== '12m' ||
-    filters.company !== 'Todas' ||
     filters.sector !== 'Todos' ||
     filters.category !== 'Todos' ||
     filters.status !== 'Todos' ||
@@ -261,588 +230,201 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     });
   };
 
-  const selectedVehicleChecklistStats = useMemo(() => {
-    if (!selectedVehicle) return { done: 0, total: CHECKLIST_ITEMS.length, pct: 0 };
-    const done = CHECKLIST_ITEMS.filter((item) => selectedVehicle.checklist[item.key]).length;
-    const total = CHECKLIST_ITEMS.length;
-    return {
-      done,
-      total,
-      pct: Math.round((done / total) * 100),
-    };
-  }, [selectedVehicle]);
-
-  const selectedVehicleHasExpiredDoc = useMemo(() => {
-    if (!selectedVehicle) return false;
-    return documents.some(
-      (d) => d.vehicleId === selectedVehicle.id && d.status === 'Vencido'
-    );
-  }, [documents, selectedVehicle]);
-
-  // Compute dot window (max 5 dots centered around active index)
-  const carouselDots = useMemo(() => {
-    const count = filteredVehicles.length;
-    if (count === 0) return [];
-    const maxDots = 5;
-    if (count <= maxDots) {
-      return filteredVehicles.map((v, idx) => ({ id: v.id, idx }));
-    }
-    const half = Math.floor(maxDots / 2);
-    let start = Math.max(0, (selectedIndex >= 0 ? selectedIndex : 0) - half);
-    if (start + maxDots > count) {
-      start = count - maxDots;
-    }
-    return Array.from({ length: maxDots }, (_, offset) => {
-      const idx = start + offset;
-      return { id: filteredVehicles[idx].id, idx };
-    });
-  }, [filteredVehicles, selectedIndex]);
-
   return (
-    <div className="flex-1 flex flex-col gap-3">
-      {/* Row 1: 4 Soft Pastel-Wave KPI Cards */}
-      <section className="shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Card 1: Veículos Cadastrados */}
+    <div className="flex-1 flex flex-col gap-3.5">
+      {/* 4 Simple Summary KPI Cards */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <button
           type="button"
           onClick={() => onFiltersChange({ ...filters, status: 'Todos' })}
-          className="relative overflow-hidden rounded-2xl border border-[#DCE8FC] bg-gradient-to-br from-[#F4F8FF] via-[#EDF4FF] to-[#E3EEFF] px-4 py-2.5 text-left shadow-[0_2px_10px_rgba(15,23,42,0.04)] transition-transform duration-150 hover:-translate-y-0.5 cursor-pointer"
+          className="rounded-xl bg-white border border-slate-200/90 px-4 py-3 text-left shadow-[0_1px_3px_rgba(15,23,42,0.04)] hover:border-[#60A5FA] transition-colors cursor-pointer"
         >
-          <svg
-            viewBox="0 0 260 72"
-            preserveAspectRatio="none"
-            className="pointer-events-none absolute right-0 bottom-0 h-11 w-3/4 opacity-50"
-            aria-hidden="true"
-          >
-            <path
-              d="M0 72 C65 44, 155 62, 260 12 L260 72 Z"
-              fill="#CFE2FF"
-            />
-          </svg>
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#D9E9FF] text-[#1565D8] shrink-0">
-              <Truck className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="font-display text-2xl font-extrabold text-[#06295A] tabular-nums leading-none">
-                  {filteredVehicles.length}
-                </span>
-                <span className="text-[0.74rem] font-bold text-[#16A34A] tabular-nums whitespace-nowrap">
-                  ↑ {filteredVehicles.length > 0 ? `${activeRate}% ativos` : '0%'}
-                </span>
-              </div>
-              <div className="mt-1 text-[0.8rem] font-semibold text-slate-600 truncate">
-                Veículos Cadastrados
-              </div>
-            </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-slate-500">Frota Total</span>
+            <Truck className="w-4 h-4 text-[#1565D8]" />
+          </div>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="font-display text-2xl font-extrabold text-[#06295A] tabular-nums leading-none">
+              {filteredVehicles.length}
+            </span>
+            <span className="text-[11px] font-semibold text-slate-500">
+              {activeCount} ativos
+            </span>
           </div>
         </button>
 
-        {/* Card 2: Veículos Ativos */}
         <button
           type="button"
-          onClick={() =>
-            onFiltersChange({
-              ...filters,
-              status: filters.status === 'Ativo' ? 'Todos' : 'Ativo',
-            })
-          }
-          className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br from-[#F2FBF6] via-[#E9F9F0] to-[#DCF5E7] px-4 py-2.5 text-left shadow-[0_2px_10px_rgba(15,23,42,0.04)] transition-transform duration-150 hover:-translate-y-0.5 cursor-pointer ${
-            filters.status === 'Ativo'
-              ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-              : 'border-[#D1F0DE]'
-          }`}
+          onClick={() => onNavigate('documentos')}
+          className="rounded-xl bg-white border border-slate-200/90 px-4 py-3 text-left shadow-[0_1px_3px_rgba(15,23,42,0.04)] hover:border-[#60A5FA] transition-colors cursor-pointer"
         >
-          <svg
-            viewBox="0 0 260 72"
-            preserveAspectRatio="none"
-            className="pointer-events-none absolute right-0 bottom-0 h-11 w-3/4 opacity-50"
-            aria-hidden="true"
-          >
-            <path
-              d="M0 72 C65 44, 155 62, 260 12 L260 72 Z"
-              fill="#BFEFD2"
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-slate-500">Alertas de Vencimento</span>
+            <AlertTriangle
+              className={`w-4 h-4 ${docAlertsCount > 0 ? 'text-amber-500' : 'text-[#1565D8]'}`}
             />
-          </svg>
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#19A255] text-white shrink-0 shadow-sm">
-              <Check className="w-5 h-5 stroke-[2.75]" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="font-display text-2xl font-extrabold text-[#06295A] tabular-nums leading-none">
-                  {activeCount}
-                </span>
-                <span className="text-[0.74rem] font-bold text-[#16A34A] tabular-nums whitespace-nowrap">
-                  ↑ {activeRate}%
-                </span>
-              </div>
-              <div className="mt-1 text-[0.8rem] font-semibold text-slate-600 truncate">
-                Veículos Ativos
-              </div>
-            </div>
+          </div>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="font-display text-2xl font-extrabold text-[#06295A] tabular-nums leading-none">
+              {docAlertsCount}
+            </span>
+            <span className="text-[11px] font-semibold text-[#1565D8]">
+              Ver documentos →
+            </span>
           </div>
         </button>
 
-        {/* Card 3: Veículos Pendentes */}
         <button
           type="button"
-          onClick={() =>
-            onFiltersChange({
-              ...filters,
-              status: filters.status === 'Parado' ? 'Todos' : 'Parado',
-            })
-          }
-          className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br from-[#FFF9F2] via-[#FFF3E6] to-[#FFEAD6] px-4 py-2.5 text-left shadow-[0_2px_10px_rgba(15,23,42,0.04)] transition-transform duration-150 hover:-translate-y-0.5 cursor-pointer ${
-            filters.status === 'Parado'
-              ? 'border-orange-500 ring-2 ring-orange-500/20'
-              : 'border-[#FCE1C6]'
-          }`}
+          onClick={() => onNavigate('evidencias')}
+          className="rounded-xl bg-white border border-slate-200/90 px-4 py-3 text-left shadow-[0_1px_3px_rgba(15,23,42,0.04)] hover:border-[#60A5FA] transition-colors cursor-pointer"
         >
-          <svg
-            viewBox="0 0 260 72"
-            preserveAspectRatio="none"
-            className="pointer-events-none absolute right-0 bottom-0 h-11 w-3/4 opacity-55"
-            aria-hidden="true"
-          >
-            <path
-              d="M0 72 C65 44, 155 62, 260 12 L260 72 Z"
-              fill="#FCD8B6"
-            />
-          </svg>
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FDE0C2] text-[#E66B0E] shrink-0">
-              <Calendar className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="font-display text-2xl font-extrabold text-[#06295A] tabular-nums leading-none">
-                  {stoppedCount}
-                </span>
-                <span className="text-[0.74rem] font-bold text-[#16A34A] tabular-nums whitespace-nowrap">
-                  ↑ {stoppedRate}%
-                </span>
-              </div>
-              <div className="mt-1 text-[0.8rem] font-semibold text-slate-600 truncate">
-                Veículos Pendentes
-              </div>
-            </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-slate-500">Evidências Completas</span>
+            <FileText className="w-4 h-4 text-[#1565D8]" />
+          </div>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="font-display text-2xl font-extrabold text-[#06295A] tabular-nums leading-none">
+              {completeEvidencesCount}/{evidences.length}
+            </span>
+            <span className="text-[11px] font-semibold text-[#1565D8]">
+              CRLV · CNT · ANTT
+            </span>
           </div>
         </button>
 
-        {/* Card 4: Checagens de Veículos */}
         <button
           type="button"
           onClick={() => onNavigate('checklists')}
-          className="relative overflow-hidden rounded-2xl border border-[#DCE8FC] bg-gradient-to-br from-[#F4F8FF] via-[#ECF3FF] to-[#E1ECFE] px-4 py-2.5 text-left shadow-[0_2px_10px_rgba(15,23,42,0.04)] transition-transform duration-150 hover:-translate-y-0.5 cursor-pointer"
+          className="rounded-xl bg-white border border-slate-200/90 px-4 py-3 text-left shadow-[0_1px_3px_rgba(15,23,42,0.04)] hover:border-[#60A5FA] transition-colors cursor-pointer"
         >
-          <svg
-            viewBox="0 0 260 72"
-            preserveAspectRatio="none"
-            className="pointer-events-none absolute right-0 bottom-0 h-11 w-3/4 opacity-50"
-            aria-hidden="true"
-          >
-            <path
-              d="M0 72 C65 44, 155 62, 260 12 L260 72 Z"
-              fill="#CFE2FF"
-            />
-          </svg>
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#D9E9FF] text-[#1565D8] shrink-0">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="font-display text-2xl font-extrabold text-[#06295A] tabular-nums leading-none">
-                  {checkedVehiclesCount}
-                </span>
-                <span className="text-[0.74rem] font-bold text-[#16A34A] tabular-nums whitespace-nowrap">
-                  ↑ {checkedRate}%
-                </span>
-              </div>
-              <div className="mt-1 text-[0.8rem] font-semibold text-slate-600 truncate">
-                Checagens de Veículos
-              </div>
-            </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-slate-500">Checklists 100%</span>
+            <ClipboardCheck className="w-4 h-4 text-[#1565D8]" />
+          </div>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="font-display text-2xl font-extrabold text-[#06295A] tabular-nums leading-none">
+              {checkedVehiclesCount}/{filteredVehicles.length}
+            </span>
+            <span className="text-[11px] font-semibold text-[#1565D8]">
+              Abrir checklists →
+            </span>
           </div>
         </button>
       </section>
 
-      {/* Row 2: Composição da Frota + Frota por Setor + Evidências Anexadas */}
-      <section className="lg:flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3">
-        {/* Composição da Frota */}
-        <div className="lg:col-span-4 rounded-2xl bg-white border border-slate-200/90 shadow-[0_2px_10px_rgba(15,23,42,0.03)] overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between px-4 py-1.5 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#114F9E] text-white">
-            <div className="flex items-center gap-2 min-w-0">
-              <PieChart className="w-4 h-4 text-blue-200 shrink-0" />
-              <h2 className="font-display text-[0.88rem] font-bold truncate">
-                Composição da Frota
+      {/* Main 2-Column Workspace: Clean Fleet List + Vehicle Quick Card */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+        {/* Left: Clean Fleet Table (5 essential columns) */}
+        <div className="lg:col-span-7 rounded-2xl bg-white border border-slate-200/90 shadow-[0_2px_10px_rgba(15,23,42,0.03)] overflow-hidden flex flex-col">
+          <div className="px-4 py-2.5 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#1565D8] text-white flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Truck className="w-4 h-4 text-blue-200 shrink-0" />
+              <h2 className="font-display text-sm font-bold">
+                Veículos da Frota ({filteredVehicles.length})
               </h2>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {filters.category !== 'Todos' && (
-                <button
-                  type="button"
-                  onClick={() => onFiltersChange({ ...filters, category: 'Todos' })}
-                  className="text-xs font-medium text-amber-200 hover:text-white underline cursor-pointer"
-                >
-                  Limpar ({filters.category})
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => onNavigate('cadastro')}
-                className="inline-flex items-center gap-1 text-[0.78rem] font-medium text-blue-100 hover:text-white cursor-pointer whitespace-nowrap"
-              >
-                <span>Ver Detalhes</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-          <div className="px-4 py-2.5 flex-1 flex items-center">
-            <div className="w-full">
-              <DonutChart
-                data={donutData}
-                total={filteredVehicles.length}
-                selectedCategory={filters.category}
-                onSelectCategory={(cat) => {
-                  setPage(1);
-                  onFiltersChange({ ...filters, category: cat });
-                }}
-              />
-            </div>
-          </div>
-        </div>
 
-        {/* Frota por Setor */}
-        <div className="lg:col-span-4 rounded-2xl bg-white border border-slate-200/90 shadow-[0_2px_10px_rgba(15,23,42,0.03)] overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between px-4 py-1.5 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#114F9E] text-white">
-            <div className="flex items-center gap-2 min-w-0">
-              <BarChart3 className="w-4 h-4 text-blue-200 shrink-0" />
-              <h2 className="font-display text-[0.88rem] font-bold truncate">
-                Frota por Setor
-              </h2>
-            </div>
-            {filters.sector !== 'Todos' && (
-              <button
-                type="button"
-                onClick={() => onFiltersChange({ ...filters, sector: 'Todos' })}
-                className="text-xs font-medium text-amber-200 hover:text-white underline cursor-pointer"
-              >
-                Limpar ({filters.sector})
-              </button>
-            )}
-          </div>
-          <div className="px-4 py-2.5 flex-1">
-            <SectorBarChart
-              data={sectorData}
-              selectedSector={filters.sector}
-              onSelectSector={(sector) => {
-                setPage(1);
-                onFiltersChange({ ...filters, sector });
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Evidências Anexadas */}
-        <div className="lg:col-span-4 rounded-2xl bg-white border border-slate-200/90 shadow-[0_2px_10px_rgba(15,23,42,0.03)] overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between px-4 py-1.5 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#114F9E] text-white">
-            <div className="flex items-center gap-2 min-w-0">
-              <FileCheck2 className="w-4 h-4 text-blue-200 shrink-0" />
-              <h2 className="font-display text-[0.88rem] font-bold truncate">
-                Evidências Anexadas
-              </h2>
-            </div>
             <button
               type="button"
-              onClick={() => onNavigate('evidencias')}
-              className="inline-flex items-center gap-1 text-[0.78rem] font-medium text-blue-100 hover:text-white cursor-pointer whitespace-nowrap"
+              onClick={() => onNavigate('cadastro')}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-100 hover:text-white cursor-pointer"
             >
-              <span>Ver Todas</span>
+              <span>Cadastro Completo</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="overflow-x-auto flex-1 flex flex-col">
-            <table className={`w-full text-left border-collapse text-[0.8rem] ${visibleEvidences.length > 0 ? 'flex-1 h-full' : ''}`}>
-              <thead>
-                <tr className="bg-[#F8FAFC] border-b border-slate-200 text-slate-600 font-semibold">
-                  <th className="py-1.5 px-3">Placa</th>
-                  <th className="py-1.5 px-2 text-center">CRLV</th>
-                  <th className="py-1.5 px-2 text-center">CNT</th>
-                  <th className="py-1.5 px-2 text-center">ANTT</th>
-                  <th className="py-1.5 px-3 text-right">Situação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {visibleEvidences.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400">
-                      Nenhuma evidência anexada.
-                    </td>
-                  </tr>
-                ) : (
-                  visibleEvidences.map((ev) => {
-                    const allOk = ev.crlv && ev.cnt && ev.antt;
-                    return (
-                      <tr
-                        key={ev.vehicleId}
-                        onClick={() => onSelectVehicle(ev.vehicleId)}
-                        className="hover:bg-slate-50 cursor-pointer transition-colors"
-                      >
-                        <td className="py-1.5 px-3 font-mono-tabular font-bold text-[#06295A] whitespace-nowrap">
-                          {ev.plate}
-                        </td>
-                        <td className="py-1.5 px-2 text-center">
-                          {ev.crlv ? (
-                            <CheckCircle2 className="w-4 h-4 text-[#19A255] inline-block" />
-                          ) : (
-                            <XCircle className="w-4 h-4 text-red-500 inline-block" />
-                          )}
-                        </td>
-                        <td className="py-1.5 px-2 text-center">
-                          {ev.cnt ? (
-                            <CheckCircle2 className="w-4 h-4 text-[#19A255] inline-block" />
-                          ) : (
-                            <XCircle className="w-4 h-4 text-red-500 inline-block" />
-                          )}
-                        </td>
-                        <td className="py-1.5 px-2 text-center">
-                          {ev.antt ? (
-                            <CheckCircle2 className="w-4 h-4 text-[#19A255] inline-block" />
-                          ) : (
-                            <XCircle className="w-4 h-4 text-red-500 inline-block" />
-                          )}
-                        </td>
-                        <td className="py-1.5 px-3 text-right">
-                          <EvidenceStatusBadge
-                            status={allOk ? 'Anexado' : 'Pendente'}
-                            label={allOk ? 'Aprovado' : 'Pendente'}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      {/* Row 3: Veículos da Frota + Detalhes do Veículo (side by side) */}
-      <section className="lg:flex-[1.2] grid grid-cols-1 lg:grid-cols-12 gap-3">
-        {/* Left: Veículos da Frota */}
-        <div className="lg:col-span-7 rounded-2xl bg-white border border-slate-200/90 shadow-[0_2px_10px_rgba(15,23,42,0.03)] overflow-hidden flex flex-col">
-          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-1.5 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#114F9E] text-white">
-            <div className="flex items-center gap-2 min-w-0">
-              <Truck className="w-4 h-4 text-blue-200 shrink-0" />
-              <h2 className="font-display text-[0.88rem] font-bold">Veículos da Frota</h2>
+          {/* Simple Filter Strip */}
+          <div className="px-3.5 py-2.5 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => {
+                  setPage(1);
+                  onFiltersChange({ ...filters, search: e.target.value });
+                }}
+                placeholder="Buscar placa ou modelo..."
+                className="w-full h-8 rounded-lg border border-slate-200 bg-white pl-8 pr-3 text-xs text-slate-800 focus:outline-none focus:border-[#1565D8]"
+              />
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-white/10 border border-white/15 px-2.5 py-0.5 text-xs">
-                <Search className="w-3.5 h-3.5 text-blue-200 shrink-0" />
-                <input
-                  type="text"
-                  value={filters.search}
-                  onChange={(e) => {
-                    setPage(1);
-                    onFiltersChange({ ...filters, search: e.target.value });
-                  }}
-                  placeholder="Placa ou modelo..."
-                  aria-label="Buscar veículo por placa ou modelo"
-                  className="w-28 md:w-36 bg-transparent text-xs text-white placeholder:text-blue-200/75 focus:outline-none"
-                />
-              </div>
+            <select
+              value={filters.sector}
+              onChange={(e) => {
+                setPage(1);
+                onFiltersChange({ ...filters, sector: e.target.value as 'Todos' | Sector });
+              }}
+              aria-label="Filtrar por setor"
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 cursor-pointer"
+            >
+              <option value="Todos">Todos os Setores</option>
+              <option value="Distribuição">Distribuição</option>
+              <option value="Vendas">Vendas</option>
+              <option value="Puxada">Puxada</option>
+              <option value="Armazém">Armazém</option>
+            </select>
 
+            <select
+              value={filters.status}
+              onChange={(e) => {
+                setPage(1);
+                onFiltersChange({ ...filters, status: e.target.value as 'Todos' | VehicleStatus });
+              }}
+              aria-label="Filtrar por status"
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 cursor-pointer"
+            >
+              <option value="Todos">Todos Status</option>
+              <option value="Ativo">Ativo</option>
+              <option value="Parado">Parado</option>
+            </select>
+
+            {hasActiveFilters && (
               <button
                 type="button"
-                onClick={() => setFiltersOpen((prev) => !prev)}
-                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-                  filtersOpen || hasActiveFilters
-                    ? 'bg-white text-[#072B5E]'
-                    : 'bg-white/15 text-blue-100 hover:bg-white/25 hover:text-white'
-                }`}
+                onClick={resetFilters}
+                className="h-8 px-2.5 rounded-lg border border-blue-200 bg-blue-50 text-[#1565D8] text-xs font-semibold inline-flex items-center gap-1 cursor-pointer"
               >
-                <Filter className="w-3 h-3" />
-                <span>Filtros</span>
+                <RotateCcw className="w-3 h-3" />
+                <span>Limpar</span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => onNavigate('cadastro')}
-                className="inline-flex items-center gap-1 text-[0.8rem] font-medium text-blue-100 hover:text-white cursor-pointer whitespace-nowrap"
-              >
-                <span>Ver Todos</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            )}
           </div>
 
-          {/* Expandable Filter Strip */}
-          {(filtersOpen || hasActiveFilters) && (
-            <div className="px-4 py-2.5 bg-slate-50/90 border-b border-slate-200 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
-              <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1">
-                <Calendar className="w-3.5 h-3.5 text-[#0A2E5C] shrink-0" />
-                <select
-                  value={filters.period}
-                  onChange={(e) => {
-                    setPage(1);
-                    onFiltersChange({
-                      ...filters,
-                      period: e.target.value as DashboardFilters['period'],
-                    });
-                  }}
-                  aria-label="Filtrar por período"
-                  className="w-full bg-transparent text-[11px] font-semibold text-slate-800 focus:outline-none cursor-pointer"
-                >
-                  <option value="12m">12 meses</option>
-                  <option value="6m">6 meses</option>
-                  <option value="30d">30 dias</option>
-                  <option value="all">Todo histórico</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1">
-                <Building2 className="w-3.5 h-3.5 text-[#0A2E5C] shrink-0" />
-                <select
-                  value={filters.company}
-                  onChange={(e) => {
-                    setPage(1);
-                    onFiltersChange({
-                      ...filters,
-                      company: e.target.value as 'Todas' | Company,
-                    });
-                  }}
-                  aria-label="Filtrar por empresa"
-                  className="w-full bg-transparent text-[11px] font-semibold text-slate-800 focus:outline-none cursor-pointer"
-                >
-                  <option value="Todas">Empresa: Todas</option>
-                  <option value="Pau Brasil Brejo">Pau Brasil Brejo</option>
-                  <option value="Pau Brasil Matriz">Pau Brasil Matriz</option>
-                  <option value="Terceirizados">Terceirizados</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1">
-                <LayoutGrid className="w-3.5 h-3.5 text-[#0A2E5C] shrink-0" />
-                <select
-                  value={filters.sector}
-                  onChange={(e) => {
-                    setPage(1);
-                    onFiltersChange({
-                      ...filters,
-                      sector: e.target.value as 'Todos' | Sector,
-                    });
-                  }}
-                  aria-label="Filtrar por setor"
-                  className="w-full bg-transparent text-[11px] font-semibold text-slate-800 focus:outline-none cursor-pointer"
-                >
-                  <option value="Todos">Setor: Todos</option>
-                  <option value="Distribuição">Distribuição</option>
-                  <option value="Vendas">Vendas</option>
-                  <option value="Puxada">Puxada</option>
-                  <option value="Armazém">Armazém</option>
-                  <option value="Marketing">Marketing</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1">
-                <Truck className="w-3.5 h-3.5 text-[#0A2E5C] shrink-0" />
-                <select
-                  value={filters.category}
-                  onChange={(e) => {
-                    setPage(1);
-                    onFiltersChange({
-                      ...filters,
-                      category: e.target.value as 'Todos' | VehicleCategory,
-                    });
-                  }}
-                  aria-label="Filtrar por tipo"
-                  className="w-full bg-transparent text-[11px] font-semibold text-slate-800 focus:outline-none cursor-pointer"
-                >
-                  <option value="Todos">Tipo: Todos</option>
-                  <option value="Caminhão">Caminhão</option>
-                  <option value="Carga Semi-Reboque">Carga Semi-Reboque</option>
-                  <option value="Empilhadeira">Empilhadeira</option>
-                  <option value="Frota Leve">Frota Leve</option>
-                  <option value="Tração Caminhão Trator">Tração Caminhão Trator</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1">
-                <UserCheck className="w-3.5 h-3.5 text-[#0A2E5C] shrink-0" />
-                <select
-                  value={filters.status}
-                  onChange={(e) => {
-                    setPage(1);
-                    onFiltersChange({
-                      ...filters,
-                      status: e.target.value as 'Todos' | VehicleStatus,
-                    });
-                  }}
-                  aria-label="Filtrar por status"
-                  className="w-full bg-transparent text-[11px] font-semibold text-slate-800 focus:outline-none cursor-pointer"
-                >
-                  <option value="Todos">Status: Todos</option>
-                  <option value="Ativo">Ativo</option>
-                  <option value="Parado">Parado</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-1.5">
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Limpar</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="overflow-x-auto flex-1 flex flex-col">
-            <table className={`w-full text-left border-collapse text-[0.77rem] ${paginatedVehicles.length > 0 ? 'flex-1 h-full' : ''}`}>
+          {/* 5-Column Clean Table */}
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-[#F8FAFC] border-b border-slate-200 text-slate-600 font-semibold">
-                  <th className="py-1.5 px-2 whitespace-nowrap">Placa</th>
-                  <th className="py-1.5 px-2 whitespace-nowrap">Tipo</th>
-                  <th className="py-1.5 px-2 whitespace-nowrap">Setor</th>
-                  <th className="py-1.5 px-2 whitespace-nowrap">Status</th>
-                  <th className="py-1.5 px-2 whitespace-nowrap">Fabricante/Modelo</th>
-                  <th className="py-1.5 px-2 whitespace-nowrap">Ano Fab./Mod.</th>
-                  <th className="py-1.5 px-2 whitespace-nowrap text-right">Km/Horas</th>
-                  <th className="py-1.5 px-2 whitespace-nowrap">Proprietário</th>
-                  <th className="py-1.5 px-2 whitespace-nowrap text-center">Idade / HB</th>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                  <th className="py-2 px-3">Placa</th>
+                  <th className="py-2 px-3">Modelo</th>
+                  <th className="py-2 px-3">Setor</th>
+                  <th className="py-2 px-3">CRLV</th>
+                  <th className="py-2 px-3 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {paginatedVehicles.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-6 text-center text-slate-500">
+                    <td colSpan={5} className="py-8 text-center text-slate-500">
                       {vehicles.length === 0 ? (
                         <div className="space-y-2">
-                          <p>Nenhum veículo cadastrado na plataforma.</p>
-                          <div className="flex flex-wrap items-center justify-center gap-2">
+                          <p>Nenhum veículo cadastrado ainda.</p>
+                          <div className="flex flex-wrap justify-center gap-2">
                             <button
                               type="button"
                               onClick={onAddVehicle}
-                              className="inline-flex items-center px-3 py-1.5 rounded-lg bg-[#0A2E5C] text-white text-xs font-semibold hover:bg-[#0D3C78] cursor-pointer"
+                              className="px-3 py-1.5 rounded-lg bg-[#0B3C7D] text-white text-xs font-semibold cursor-pointer"
                             >
-                              Cadastrar Primeiro Veículo
+                              Cadastrar Veículo
                             </button>
                             {onLoadDefaultFleet && (
                               <button
                                 type="button"
                                 onClick={onLoadDefaultFleet}
-                                className="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+                                className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-semibold cursor-pointer"
                               >
                                 Carregar Frota Padrão
                               </button>
@@ -851,11 +433,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                         </div>
                       ) : (
                         <>
-                          Nenhum veículo encontrado para os filtros aplicados.{' '}
+                          Nenhum veículo encontrado.{' '}
                           <button
                             type="button"
                             onClick={resetFilters}
-                            className="text-[#0A2E5C] font-semibold underline cursor-pointer"
+                            className="text-[#1565D8] font-semibold underline cursor-pointer"
                           >
                             Limpar filtros
                           </button>
@@ -871,38 +453,23 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                         key={v.id}
                         onClick={() => onSelectVehicle(v.id)}
                         className={`cursor-pointer transition-colors ${
-                          isSelected
-                            ? 'bg-blue-50/80 font-medium'
-                            : 'hover:bg-slate-50/90'
+                          isSelected ? 'bg-blue-50/80' : 'hover:bg-slate-50'
                         }`}
                       >
-                        <td className="py-1.5 px-2 font-mono-tabular font-bold text-[#06295A] whitespace-nowrap">
+                        <td className="py-2.5 px-3 font-mono-tabular font-bold text-[#06295A] whitespace-nowrap">
                           {v.plate}
                         </td>
-                        <td className="py-1.5 px-2 text-slate-700 whitespace-nowrap max-w-[125px] truncate" title={v.category}>
-                          {v.category}
-                        </td>
-                        <td className="py-1.5 px-2 text-slate-700 whitespace-nowrap">
-                          {v.sector}
-                        </td>
-                        <td className="py-1.5 px-2 whitespace-nowrap">
-                          <VehicleStatusBadge status={v.status} />
-                        </td>
-                        <td className="py-1.5 px-2 text-slate-800 whitespace-nowrap max-w-[165px] truncate" title={v.manufacturerModel}>
+                        <td className="py-2.5 px-3 text-slate-800 max-w-[200px] truncate">
                           {v.manufacturerModel}
                         </td>
-                        <td className="py-1.5 px-2 font-mono-tabular text-slate-600 whitespace-nowrap">
-                          {v.yearFab} / {v.yearMod}
+                        <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                          {v.sector}
                         </td>
-                        <td className="py-1.5 px-2 font-mono-tabular text-slate-700 text-right whitespace-nowrap">
-                          {formatKmOrHours(v.kmOrHours, v.unit)}
+                        <td className="py-2.5 px-3 font-mono-tabular text-slate-700 whitespace-nowrap">
+                          {v.expiryDates.crlv || '—'}
                         </td>
-                        <td className="py-1.5 px-2 text-slate-700 whitespace-nowrap">
-                          {v.ownership}
-                        </td>
-                        <td className="py-1.5 px-2 text-center font-mono-tabular text-slate-600 whitespace-nowrap">
-                          {sanitizeFleetAgeYearMonths(v.fleetAgeYearMonths) ||
-                            (v.hbFrota ? 'Sim' : 'Não')}
+                        <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                          <VehicleStatusBadge status={v.status} />
                         </td>
                       </tr>
                     );
@@ -912,84 +479,61 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </table>
           </div>
 
-          {/* Pagination Footer */}
-          <div className="mt-auto flex flex-wrap items-center justify-between gap-2 px-4 py-1.5 border-t border-slate-100 bg-white text-xs">
-            <span className="text-[0.76rem] font-semibold text-slate-500 tabular-nums">
-              Total: {filteredVehicles.length} veículos
-            </span>
-
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={currentPage <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                aria-label="Página anterior"
-                className="p-1.5 rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 cursor-pointer disabled:cursor-default"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let pageNum = i + 1;
-                if (totalPages > 5 && currentPage > 3) {
-                  pageNum = Math.min(totalPages - 4 + i, currentPage - 2 + i);
-                }
-                const active = pageNum === currentPage;
-                return (
-                  <button
-                    key={pageNum}
-                    type="button"
-                    onClick={() => setPage(pageNum)}
-                    className={`min-w-[26px] h-[26px] px-1.5 rounded-md text-xs font-bold tabular-nums transition-colors cursor-pointer ${
-                      active
-                        ? 'bg-[#1565D8] text-white shadow-xs'
-                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-
-              <button
-                type="button"
-                disabled={currentPage >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                aria-label="Próxima página"
-                className="p-1.5 rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 cursor-pointer disabled:cursor-default"
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+          {/* Simple Pagination */}
+          {totalPages > 1 && (
+            <div className="px-3.5 py-2 border-t border-slate-100 flex items-center justify-between text-xs bg-white">
+              <span className="text-slate-500 font-medium">
+                Página {currentPage} de {totalPages}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="p-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="p-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+                  aria-label="Próxima página"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Right: Detalhes do Veículo */}
+        {/* Right: Clean Selected Vehicle Summary Card */}
         <div className="lg:col-span-5 flex flex-col">
           {selectedVehicle ? (
             <div className="rounded-2xl bg-white border border-slate-200/90 shadow-[0_2px_10px_rgba(15,23,42,0.03)] overflow-hidden flex-1 flex flex-col">
-              <div className="flex items-center justify-between gap-2 px-4 py-1.5 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#114F9E] text-white">
-                <div className="flex items-center gap-2 min-w-0">
-                  <CarFront className="w-4 h-4 text-blue-200 shrink-0" />
-                  <h2 className="font-display text-[0.88rem] font-bold whitespace-nowrap">
-                    Detalhes do Veículo
-                  </h2>
-                  <span className="text-[0.78rem] font-semibold text-blue-100/95 font-mono-tabular truncate">
-                    {selectedVehicle.plate} - {selectedVehicle.manufacturerModel}
+              <div className="px-4 py-2.5 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#1565D8] text-white flex items-center justify-between gap-2">
+                <div className="min-w-0 flex items-center gap-2">
+                  <span className="font-mono-tabular font-extrabold text-sm">
+                    {selectedVehicle.plate}
+                  </span>
+                  <span className="text-xs text-blue-100 truncate">
+                    {selectedVehicle.manufacturerModel}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => onEditVehicle(selectedVehicle)}
-                  className="inline-flex items-center gap-1 text-[0.78rem] font-semibold text-blue-100 hover:text-white cursor-pointer whitespace-nowrap shrink-0"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-semibold text-white cursor-pointer shrink-0"
                 >
-                  <span>Editar Cadastro</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <Edit3 className="w-3 h-3" />
+                  <span>Editar</span>
                 </button>
               </div>
 
-              <div className="px-4 py-2.5 flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 items-center content-center">
-                {/* Top-Left: Photo Carousel */}
+              <div className="p-4 flex-1 flex flex-col justify-between gap-4">
+                {/* Photo + Quick Cycle */}
                 <div>
                   <input
                     ref={photoInputRef}
@@ -998,9 +542,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) {
-                        handlePhotoUpload(file, selectedVehicle.id);
-                      }
+                      if (file) handlePhotoUpload(file, selectedVehicle.id);
                       e.target.value = '';
                     }}
                   />
@@ -1011,383 +553,258 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       selectedVehicle.photoUrl
                     );
                     return (
-                      <div>
-                        <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleCycleVehicle(-1)}
+                          aria-label="Veículo anterior"
+                          className="p-1.5 rounded-lg border border-slate-200 text-[#0B3C7D] hover:bg-slate-50 cursor-pointer shrink-0"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+
+                        <div className="relative flex-1 h-32 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
                           <button
                             type="button"
-                            onClick={() => handleCycleVehicle(-1)}
-                            aria-label="Veículo anterior"
-                            className="p-0.5 rounded-full text-[#1565D8] hover:bg-blue-50 transition-colors cursor-pointer shrink-0"
+                            onClick={() => setPhotoPreviewOpen(true)}
+                            className="w-full h-full block cursor-pointer"
+                            title="Ampliar foto"
                           >
-                            <ChevronLeft className="w-4 h-4" />
+                            <img
+                              src={displayPhoto}
+                              alt={`${selectedVehicle.manufacturerModel} (${selectedVehicle.plate})`}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-contain"
+                            />
                           </button>
-
-                          <div className="group relative flex-1 h-[5.75rem] xl:h-[6.5rem] rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+                          <div className="absolute right-2 bottom-2 flex items-center gap-1">
                             <button
                               type="button"
                               onClick={() => setPhotoPreviewOpen(true)}
-                              title="Clique para ampliar a foto do veículo"
-                              className="w-full h-full block cursor-pointer"
+                              className="inline-flex items-center gap-1 rounded-md bg-slate-900/75 px-2 py-1 text-[10px] font-semibold text-white cursor-pointer"
                             >
-                              <img
-                                src={displayPhoto}
-                                alt={`${selectedVehicle.manufacturerModel} (${selectedVehicle.plate})`}
-                                referrerPolicy="no-referrer"
-                                className="w-full h-full object-contain"
-                              />
+                              <Maximize2 className="w-3 h-3" />
+                              Ampliar
                             </button>
-
-                            <div className="absolute right-1.5 bottom-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {onUpdateVehiclePhoto && (
                               <button
                                 type="button"
-                                onClick={() => setPhotoPreviewOpen(true)}
-                                className="inline-flex items-center gap-1 rounded-md bg-slate-900/75 px-1.5 py-0.5 text-[10px] font-semibold text-white cursor-pointer"
+                                onClick={() => photoInputRef.current?.click()}
+                                className="inline-flex items-center gap-1 rounded-md bg-[#1565D8]/90 px-2 py-1 text-[10px] font-semibold text-white cursor-pointer"
                               >
-                                <Maximize2 className="w-2.5 h-2.5" />
-                                Ampliar
+                                <Camera className="w-3 h-3" />
+                                Foto
                               </button>
-                              {onUpdateVehiclePhoto && (
-                                <button
-                                  type="button"
-                                  onClick={() => photoInputRef.current?.click()}
-                                  className="inline-flex items-center gap-1 rounded-md bg-[#1565D8]/90 px-1.5 py-0.5 text-[10px] font-semibold text-white cursor-pointer"
-                                >
-                                  <Camera className="w-2.5 h-2.5" />
-                                  Trocar
-                                </button>
-                              )}
-                            </div>
+                            )}
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => handleCycleVehicle(1)}
-                            aria-label="Próximo veículo"
-                            className="p-0.5 rounded-full text-[#1565D8] hover:bg-blue-50 transition-colors cursor-pointer shrink-0"
-                          >
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
                         </div>
 
-                        {/* Carousel Dots + Subtle Change Photo Action */}
-                        <div className="mt-1.5 flex items-center justify-center gap-1.5">
-                          {carouselDots.map((dot) => {
-                            const active = dot.id === selectedVehicle.id;
-                            return (
-                              <button
-                                key={dot.id}
-                                type="button"
-                                onClick={() => onSelectVehicle(dot.id)}
-                                aria-label={`Selecionar veículo ${dot.idx + 1}`}
-                                className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                                  active
-                                    ? 'w-3.5 bg-[#1565D8]'
-                                    : 'w-1.5 bg-slate-300 hover:bg-slate-400'
-                                }`}
-                              />
-                            );
-                          })}
-                          {onUpdateVehiclePhoto && (
-                            <button
-                              type="button"
-                              onClick={() => photoInputRef.current?.click()}
-                              title="Alterar foto deste veículo"
-                              className="ml-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-[#1565D8] hover:underline cursor-pointer"
-                            >
-                              <Camera className="w-3 h-3" />
-                              <span>Trocar foto</span>
-                            </button>
-                          )}
-                        </div>
-
-                        {photoPreviewOpen && (
-                          <div
-                            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-[1px]"
-                            onClick={() => setPhotoPreviewOpen(false)}
-                          >
-                            <div
-                              className="relative max-w-4xl w-full rounded-xl bg-white shadow-2xl overflow-hidden border border-slate-200"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="flex items-center justify-between px-4 py-3 bg-[#072B5E] text-white">
-                                <span className="font-display text-sm font-bold">
-                                  {selectedVehicle.plate} · {selectedVehicle.manufacturerModel}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setPhotoPreviewOpen(false)}
-                                  aria-label="Fechar visualização"
-                                  className="p-1 rounded hover:bg-white/15 cursor-pointer"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
-                              <div className="bg-slate-950 flex items-center justify-center p-2 max-h-[80vh]">
-                                <img
-                                  src={displayPhoto}
-                                  alt={`${selectedVehicle.manufacturerModel} (${selectedVehicle.plate})`}
-                                  className="max-h-[75vh] w-auto object-contain rounded"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleCycleVehicle(1)}
+                          aria-label="Próximo veículo"
+                          className="p-1.5 rounded-lg border border-slate-200 text-[#0B3C7D] hover:bg-slate-50 cursor-pointer shrink-0"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
                       </div>
                     );
                   })()}
                 </div>
 
-                {/* Top-Right: Checklist do Veículo with Circular Progress Gauge */}
-                <div className="sm:border-l sm:border-slate-100 sm:pl-3.5">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <h3 className="font-display text-[0.8rem] font-bold text-[#06295A]">
-                      Checklist do Veículo
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('checklists')}
-                      className="text-[0.74rem] font-semibold text-[#1565D8] hover:underline cursor-pointer whitespace-nowrap"
-                    >
-                      Ver todos ({CHECKLIST_ITEMS.length})
-                    </button>
+                {/* Essential Info Grid */}
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                  <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
+                    <div className="text-[11px] text-slate-500">Categoria / Setor</div>
+                    <div className="font-semibold text-[#06295A] truncate mt-0.5">
+                      {selectedVehicle.category} · {selectedVehicle.sector}
+                    </div>
                   </div>
-
-                  <div className="flex items-center gap-3">
-                    {/* Circular Progress Ring */}
-                    {(() => {
-                      const ringSize = 68;
-                      const stroke = 7;
-                      const r = (ringSize - stroke) / 2;
-                      const circ = 2 * Math.PI * r;
-                      const offset =
-                        circ - (selectedVehicleChecklistStats.pct / 100) * circ;
-                      return (
-                        <div
-                          className="relative shrink-0"
-                          style={{ width: ringSize, height: ringSize }}
-                        >
-                          <svg
-                            viewBox={`0 0 ${ringSize} ${ringSize}`}
-                            className="w-full h-full -rotate-90"
-                          >
-                            <circle
-                              cx={ringSize / 2}
-                              cy={ringSize / 2}
-                              r={r}
-                              fill="none"
-                              stroke="#E2E8F0"
-                              strokeWidth={stroke}
-                            />
-                            <circle
-                              cx={ringSize / 2}
-                              cy={ringSize / 2}
-                              r={r}
-                              fill="none"
-                              stroke={
-                                selectedVehicleChecklistStats.pct === 100
-                                  ? '#16A34A'
-                                  : '#1565D8'
-                              }
-                              strokeWidth={stroke}
-                              strokeLinecap="round"
-                              strokeDasharray={circ}
-                              strokeDashoffset={offset}
-                              className="transition-all duration-300"
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <span className="font-display text-[0.9rem] font-extrabold text-[#06295A] tabular-nums">
-                              {selectedVehicleChecklistStats.pct}%
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Key Checklist Items */}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      {PREVIEW_CHECKLIST_KEYS.map((key) => {
-                        const def = CHECKLIST_ITEMS.find((item) => item.key === key);
-                        if (!def) return null;
-                        const checked = selectedVehicle.checklist[key];
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() =>
-                              onToggleChecklistItem(selectedVehicle.id, key)
-                            }
-                            title="Clique para alternar item"
-                            className="w-full flex items-center gap-1.5 text-left text-[0.77rem] leading-tight text-slate-700 hover:text-slate-950 cursor-pointer"
-                          >
-                            {checked ? (
-                              <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#19A255] text-white shrink-0">
-                                <Check className="w-2.5 h-2.5 stroke-[3]" />
-                              </span>
-                            ) : (
-                              <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-100 text-red-600 shrink-0">
-                                <X className="w-2.5 h-2.5 stroke-[3]" />
-                              </span>
-                            )}
-                            <span className="truncate font-medium">{def.label}</span>
-                          </button>
-                        );
-                      })}
+                  <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
+                    <div className="text-[11px] text-slate-500">Km / Horímetro</div>
+                    <div className="font-mono-tabular font-semibold text-[#06295A] mt-0.5">
+                      {formatKmOrHours(selectedVehicle.kmOrHours, selectedVehicle.unit)}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
+                    <div className="text-[11px] text-slate-500">CRLV</div>
+                    <div className="font-mono-tabular font-bold text-[#06295A] mt-0.5">
+                      {selectedVehicle.expiryDates.crlv || 'Não informado'}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
+                    <div className="text-[11px] text-slate-500">ANTT / Cronotacógrafo</div>
+                    <div className="font-mono-tabular font-bold text-[#06295A] truncate mt-0.5">
+                      {selectedVehicle.expiryDates.antt || '—'} ·{' '}
+                      {selectedVehicle.expiryDates.cronotacografo || '—'}
                     </div>
                   </div>
                 </div>
 
-                {/* Bottom-Left: Technical Specs with Blue Icons */}
-                <div className="space-y-1 text-[0.77rem] leading-tight pt-2 border-t border-slate-100">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <Hash className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>Placa:</span>
+                {/* Checklist & Evidence Progress Strip */}
+                <div className="rounded-xl border border-slate-200 p-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-[#06295A]">
+                      Checklist ({selectedVehicleChecklistStats.done}/{selectedVehicleChecklistStats.total})
                     </span>
-                    <span className="font-mono-tabular font-bold text-[#06295A]">
-                      {selectedVehicle.plate}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <FileText className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>Renavam:</span>
-                    </span>
-                    <span className="font-mono-tabular font-semibold text-slate-800">
-                      {selectedVehicle.renavam}
+                    <span className="font-mono-tabular font-bold text-[#1565D8]">
+                      {selectedVehicleChecklistStats.pct}%
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <KeyRound className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>Chassi:</span>
-                    </span>
-                    <span className="font-mono-tabular font-semibold text-slate-800 truncate">
-                      {selectedVehicle.chassi}
-                    </span>
+                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#1565D8] transition-all"
+                      style={{ width: `${selectedVehicleChecklistStats.pct}%` }}
+                    />
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <Fuel className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>Tanque:</span>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px]">
+                    <span className="inline-flex items-center gap-1 text-slate-600">
+                      <CheckCircle2
+                        className={`w-3.5 h-3.5 ${
+                          selectedVehicleEvidence?.crlv &&
+                          selectedVehicleEvidence?.cnt &&
+                          selectedVehicleEvidence?.antt
+                            ? 'text-emerald-600'
+                            : 'text-amber-500'
+                        }`}
+                      />
+                      Evidências:{' '}
+                      {selectedVehicleEvidence
+                        ? `${[
+                            selectedVehicleEvidence.crlv ? 'CRLV' : null,
+                            selectedVehicleEvidence.cnt ? 'CNT' : null,
+                            selectedVehicleEvidence.antt ? 'ANTT' : null,
+                          ]
+                            .filter(Boolean)
+                            .join(', ') || 'Pendentes'}`
+                        : '—'}
                     </span>
-                    <span className="font-semibold text-slate-800 truncate">
-                      {selectedVehicle.tankCapacity}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <Package className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>Capacidade:</span>
-                    </span>
-                    <span className="font-semibold text-slate-800 truncate">
-                      {selectedVehicle.cargoCapacity}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <Droplets className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>Combustível:</span>
-                    </span>
-                    <span className="font-semibold text-slate-800 truncate">
-                      {selectedVehicle.fuelType}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Bottom-Right: Values & Compliance with Blue Icons */}
-                <div className="space-y-1 text-[0.77rem] leading-tight pt-2 border-t border-slate-100 sm:border-l sm:pl-3.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <CircleDollarSign className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>Valor FIPE:</span>
-                    </span>
-                    <span className="font-mono-tabular font-bold text-slate-900 whitespace-nowrap">
-                      {formatCurrencyBRL(selectedVehicle.fipeValue)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <TrendingUp className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>Valor Atual:</span>
-                    </span>
-                    <span className="font-mono-tabular font-bold text-slate-900 whitespace-nowrap">
-                      {formatCurrencyBRL(selectedVehicle.currentValue)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <Gauge className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>Km/Horímetro:</span>
-                    </span>
-                    <span className="font-mono-tabular font-semibold text-slate-800 whitespace-nowrap">
-                      {formatKmOrHours(selectedVehicle.kmOrHours, selectedVehicle.unit)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <CalendarCheck className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>CRLV:</span>
-                    </span>
-                    <span className="font-mono-tabular font-semibold text-slate-800 whitespace-nowrap">
-                      {selectedVehicle.expiryDates.crlv}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <BadgeCheck className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>ANTT:</span>
-                    </span>
-                    <span className="font-mono-tabular font-semibold text-slate-800 whitespace-nowrap">
-                      {selectedVehicle.expiryDates.antt || selectedVehicle.expiryDates.ipva}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-slate-500 font-medium">
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#1565D8] shrink-0" />
-                      <span>Conformidade:</span>
-                    </span>
-                    {selectedVehicleChecklistStats.pct === 100 &&
-                    !selectedVehicleHasExpiredDoc ? (
-                      <span className="inline-flex items-center gap-1 font-bold text-[#15803D] whitespace-nowrap">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#19A255]" />
-                        Conformidade OK
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 font-bold text-amber-700 whitespace-nowrap">
-                        <XCircle className="w-3.5 h-3.5 text-amber-600" />
-                        Com Pendências
-                      </span>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('checklists')}
+                      className="font-semibold text-[#1565D8] hover:underline cursor-pointer"
+                    >
+                      Abrir checklist →
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl bg-white border border-slate-200/90 overflow-hidden flex-1 flex flex-col">
-              <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-[#072B5E] via-[#0B3C7D] to-[#114F9E] text-white">
-                <h2 className="font-display text-[0.84rem] font-bold">
-                  Detalhes do Veículo
-                </h2>
-              </div>
-              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-xs text-slate-500 gap-2.5">
-                <Truck className="w-7 h-7 text-slate-300" />
-                <p>
-                  Nenhum veículo selecionado. Cadastre um veículo para visualizar
-                  especificações, valores e checklist.
-                </p>
-                <button
-                  type="button"
-                  onClick={onAddVehicle}
-                  className="px-4 py-1.5 rounded-full bg-[#072B5E] text-white font-semibold hover:bg-[#0D3C78] cursor-pointer"
-                >
-                  Cadastrar Veículo
-                </button>
-              </div>
+            <div className="rounded-2xl bg-white border border-slate-200/90 p-8 text-center text-xs text-slate-500 flex-1 flex flex-col items-center justify-center gap-2">
+              <Truck className="w-8 h-8 text-slate-300" />
+              <p>Nenhum veículo cadastrado.</p>
+              <button
+                type="button"
+                onClick={onAddVehicle}
+                className="px-4 py-2 rounded-lg bg-[#0B3C7D] text-white text-xs font-semibold cursor-pointer"
+              >
+                Cadastrar Veículo
+              </button>
             </div>
           )}
         </div>
       </section>
+
+      {/* Compact Sector & Category Quick Filter Chips */}
+      <section className="rounded-2xl bg-white border border-slate-200/90 px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+            Setores:
+          </span>
+          {sectorSummary.map((s) => {
+            const active = filters.sector === s.sector;
+            return (
+              <button
+                key={s.sector}
+                type="button"
+                onClick={() => {
+                  setPage(1);
+                  onFiltersChange({ ...filters, sector: active ? 'Todos' : s.sector });
+                }}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold transition-colors cursor-pointer ${
+                  active
+                    ? 'bg-[#0B3C7D] border-[#0B3C7D] text-white'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-blue-50'
+                }`}
+              >
+                <span>{s.sector}</span>
+                <span className="font-mono-tabular opacity-80">{s.count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+            Tipos:
+          </span>
+          {categorySummary
+            .filter((c) => c.count > 0)
+            .map((c) => {
+              const active = filters.category === c.category;
+              return (
+                <button
+                  key={c.category}
+                  type="button"
+                  onClick={() => {
+                    setPage(1);
+                    onFiltersChange({
+                      ...filters,
+                      category: active ? 'Todos' : c.category,
+                    });
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold transition-colors cursor-pointer ${
+                    active
+                      ? 'bg-[#1565D8] border-[#1565D8] text-white'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-blue-50'
+                  }`}
+                >
+                  <span>{c.label}</span>
+                  <span className="font-mono-tabular opacity-80">{c.count}</span>
+                </button>
+              );
+            })}
+        </div>
+      </section>
+
+      {/* Photo Preview Modal */}
+      {photoPreviewOpen && selectedVehicle && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-[1px]"
+          onClick={() => setPhotoPreviewOpen(false)}
+        >
+          <div
+            className="relative max-w-4xl w-full rounded-xl bg-white shadow-2xl overflow-hidden border border-slate-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 bg-[#072B5E] text-white">
+              <span className="font-display text-sm font-bold">
+                {selectedVehicle.plate} · {selectedVehicle.manufacturerModel}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPhotoPreviewOpen(false)}
+                aria-label="Fechar visualização"
+                className="p-1 rounded hover:bg-white/15 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="bg-slate-950 flex items-center justify-center p-2 max-h-[80vh]">
+              <img
+                src={resolveVehiclePhoto(
+                  selectedVehicle.plate,
+                  selectedVehicle.category,
+                  selectedVehicle.photoUrl
+                )}
+                alt={`${selectedVehicle.manufacturerModel} (${selectedVehicle.plate})`}
+                className="max-h-[75vh] w-auto object-contain rounded"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

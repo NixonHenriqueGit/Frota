@@ -9,7 +9,11 @@ import {
   VehicleCategory,
   VehicleStatus,
 } from '../types/fleet';
-import { CHECKLIST_ITEMS, resolveVehiclePhoto } from '../data/fleetSeed';
+import {
+  CHECKLIST_ITEMS,
+  getChecklistItemsForCategory,
+  resolveVehiclePhoto,
+} from '../data/fleetSeed';
 
 interface VehicleModalProps {
   isOpen: boolean;
@@ -928,33 +932,46 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
             </div>
           )}
 
-          {activeTab === 'checklist' && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {CHECKLIST_ITEMS.map((item) => (
-                <label
-                  key={item.key}
-                  className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-xs font-semibold cursor-pointer ${
-                    checklist[item.key]
-                      ? 'border-emerald-200 bg-emerald-50/50 text-emerald-900'
-                      : 'border-slate-200 bg-white text-slate-700'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checklist[item.key]}
-                    onChange={() =>
-                      setChecklist((prev) => ({
-                        ...prev,
-                        [item.key]: !prev[item.key],
-                      }))
-                    }
-                    className="rounded border-slate-300 text-[#0A2E5C]"
-                  />
-                  <span>{item.label}</span>
-                </label>
-              ))}
-            </div>
-          )}
+          {activeTab === 'checklist' && (() => {
+            const categoryItems = getChecklistItemsForCategory(category);
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>
+                    Checklist específico para <strong className="text-slate-900">{category}</strong>
+                  </span>
+                  <span className="font-mono-tabular font-semibold text-[#0A2E5C]">
+                    {categoryItems.filter((item) => checklist[item.key]).length} / {categoryItems.length} itens
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {categoryItems.map((item) => (
+                    <label
+                      key={item.key}
+                      className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-xs font-semibold cursor-pointer ${
+                        checklist[item.key]
+                          ? 'border-emerald-200 bg-emerald-50/50 text-emerald-900'
+                          : 'border-slate-200 bg-white text-slate-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checklist[item.key]}
+                        onChange={() =>
+                          setChecklist((prev) => ({
+                            ...prev,
+                            [item.key]: !prev[item.key],
+                          }))
+                        }
+                        className="rounded border-slate-300 text-[#0A2E5C]"
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="flex items-center justify-between pt-3 border-t border-slate-200">
             <span className="text-[11px] text-slate-500">

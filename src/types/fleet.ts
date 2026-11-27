@@ -165,7 +165,9 @@ export type LegalizedFolderName =
   | 'CAMINHÕES'
   | 'PUXADA'
   | 'MELHORIA PROGRESSIVA'
-  | 'ESTRATIFICAÇÃO PROBLEMAS';
+  | 'ESTRATIFICAÇÃO PROBLEMAS'
+  | 'DTO'
+  | 'RECIBOS';
 
 export type BlitzKind = 'entrega' | 'puxada' | 'empilhadeira';
 
@@ -385,6 +387,8 @@ export type NavSection =
   | 'melhoria-progressiva'
   | 'estratificacao-problemas'
   | 'qualidade-iv'
+  | 'tempo-reparo-iv'
+  | 'dto'
   | 'visao-geral'
   | 'cadastro'
   | 'documentos'

@@ -1,7 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowLeft, Layers, Search, X } from 'lucide-react';
 import { NavSection } from '../types/fleet';
-import { PLATFORM_CARD_GRID_CLASS, PlatformCard } from './PlatformCard';
+import {
+  PLATFORM_CARD_GRID_CLASS,
+  PLATFORM_MAIN_CARD_GRID_CLASS,
+  PlatformCard,
+} from './PlatformCard';
 
 interface Bloco1HubViewProps {
   onSelectSection: (section: NavSection) => void;
@@ -15,8 +19,10 @@ interface Bloco1HubViewProps {
   progressiveImprovementCount: number;
   problemStratificationCount: number;
   qualityIvPct: number;
-  activeGroup: '1.1' | '1.2' | '1.3' | null;
-  onSelectGroup: (group: '1.1' | '1.2' | '1.3' | null) => void;
+  repairIvPct: number;
+  dtoCount: number;
+  activeGroup: '1.1' | '1.2' | '1.3' | '1.4' | null;
+  onSelectGroup: (group: '1.1' | '1.2' | '1.3' | '1.4' | null) => void;
 }
 
 interface ModuleCardConfig {
@@ -43,6 +49,9 @@ const GROUP_1_3_TITLE = '1.3 CHECK LIST DA FROTA';
 const GROUP_1_3_SUBTITLE =
   'Inspeções preventivas, verificação diária e conformidade operacional dos veículos da frota';
 
+const GROUP_1_4_TITLE = '1.4 DESCARTE DE RESÍDUOS DA MANUTENÇÃO';
+const GROUP_1_4_SUBTITLE = '';
+
 export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
   onSelectSection,
   legalizedCount,
@@ -55,6 +64,8 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
   progressiveImprovementCount,
   problemStratificationCount,
   qualityIvPct,
+  repairIvPct,
+  dtoCount,
   activeGroup,
   onSelectGroup,
 }) => {
@@ -186,8 +197,32 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
           'Indicador de Valor (IV) para medir a qualidade dos checklists realizados: cobertura, rastreio, rigor e tratativa',
         countLabel: `IV ${qualityIvPct}%`,
       },
+      {
+        id: 'tempo-reparo-iv',
+        group: '1.3',
+        kicker: '1.3.8 · REPARO, ANS E PLANO DE AÇÃO',
+        title: '1.3.8 TEMPO DE REPARO E ANS (IV)',
+        subtitle:
+          'Tempo para corrigir NOKs, resposta a defeitos críticos, aderência ao ANS e plano de ação dos últimos 3 meses',
+        countLabel: `IV ${repairIvPct}%`,
+      },
+      {
+        id: 'dto',
+        group: '1.3',
+        kicker: '1.3.9 · DIÁLOGO TÉCNICO OPERACIONAL',
+        title: '1.3.9 DTO',
+        subtitle:
+          'Checklist Frota (19 passos) realizado pela liderança para condutores de veículos e equipamentos, com análises mensais',
+        countLabel: `${String(dtoCount).padStart(2, '0')} DTO${dtoCount === 1 ? '' : 's'}`,
+      },
     ],
-    [progressiveImprovementCount, problemStratificationCount, qualityIvPct]
+    [
+      progressiveImprovementCount,
+      problemStratificationCount,
+      qualityIvPct,
+      repairIvPct,
+      dtoCount,
+    ]
   );
 
   const allModules = useMemo(
@@ -204,13 +239,16 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
         ? modules12
         : activeGroup === '1.3'
           ? modules13
-          : allModules;
+          : activeGroup === '1.4'
+            ? []
+            : allModules;
 
   const filteredModules = useMemo(() => {
     if (!query) return currentGroupModules;
     if (activeGroup === '1.1' && GROUP_1_1_TITLE.toLowerCase().includes(query)) return modules11;
     if (activeGroup === '1.2' && GROUP_1_2_TITLE.toLowerCase().includes(query)) return modules12;
     if (activeGroup === '1.3' && GROUP_1_3_TITLE.toLowerCase().includes(query)) return modules13;
+    if (activeGroup === '1.4' && GROUP_1_4_TITLE.toLowerCase().includes(query)) return [];
     return currentGroupModules.filter(
       (m) =>
         m.title.toLowerCase().includes(query) ||
@@ -245,6 +283,14 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
         countLabel: `${String(modules13.length).padStart(2, '0')} móds.`,
         statusLabel: 'Módulo ativo',
       },
+      {
+        id: '1.4' as const,
+        kicker: '1.4 · BLOCO 1',
+        title: GROUP_1_4_TITLE,
+        subtitle: GROUP_1_4_SUBTITLE,
+        countLabel: '00 móds.',
+        statusLabel: 'Em preparação',
+      },
     ],
     [modules11.length, modules12.length, modules13.length]
   );
@@ -270,7 +316,9 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
         ? GROUP_1_2_TITLE
         : activeGroup === '1.3'
           ? GROUP_1_3_TITLE
-          : 'BLOCO 1 — DOCUMENTOS DA FROTA';
+          : activeGroup === '1.4'
+            ? GROUP_1_4_TITLE
+            : 'BLOCO 1 — DOCUMENTOS DA FROTA';
 
   const heroSubtitle =
     activeGroup === '1.1'
@@ -279,7 +327,9 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
         ? 'Selecione um módulo abaixo para acessar os padrões técnicos e equipamentos da frota.'
         : activeGroup === '1.3'
           ? 'Selecione um módulo abaixo para abrir os checklists e inspeções da frota.'
-          : 'Selecione uma categoria abaixo para abrir os módulos do Bloco 1.';
+          : activeGroup === '1.4'
+            ? 'Nenhum submódulo adicionado ainda nesta aba.'
+            : 'Selecione uma categoria abaixo para abrir os módulos do Bloco 1.';
 
   const heroPlaceholder =
     activeGroup === '1.1'
@@ -288,7 +338,9 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
         ? 'Filtrar em 1.2...'
         : activeGroup === '1.3'
           ? 'Filtrar em 1.3...'
-          : 'Filtrar no Bloco 1...';
+          : activeGroup === '1.4'
+            ? 'Filtrar em 1.4...'
+            : 'Filtrar no Bloco 1...';
 
   return (
     <div className="flex-1 flex flex-col gap-4 py-1">
@@ -337,7 +389,7 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
                       ·
                     </span>
                     <span className="font-mono-tabular text-blue-100/90">
-                      03 grupos · {allModules.length} módulos
+                      04 grupos · {allModules.length} módulos
                     </span>
                   </>
                 )}
@@ -380,13 +432,14 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
         </div>
       </section>
 
-      {/* Root Group Cards: 1.1 & 1.2 */}
+      {/* Root Group Cards: 1.1, 1.2, 1.3 & 1.4 */}
       {showRootGroups ? (
         <section aria-label="Categorias do Bloco 1">
-          <div className={PLATFORM_CARD_GRID_CLASS}>
+          <div className={PLATFORM_MAIN_CARD_GRID_CLASS}>
             {matchingRootGroups.map((group) => (
               <PlatformCard
                 key={group.id}
+                size="lg"
                 kicker={group.kicker}
                 countLabel={group.countLabel}
                 title={group.title}
@@ -405,7 +458,7 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
                 Nenhum módulo encontrado para &ldquo;{search}&rdquo;.
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Tente buscar pelo código (1.1, 1.2, 1.3, 1.1.1 a 1.1.5, 1.2.1 a 1.2.3) ou pelo nome do módulo.
+                Tente buscar pelo código (1.1, 1.2, 1.3, 1.4, 1.1.1 a 1.1.5, 1.2.1 a 1.2.3) ou pelo nome do módulo.
               </p>
               <button
                 type="button"

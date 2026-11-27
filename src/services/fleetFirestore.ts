@@ -109,6 +109,8 @@ const VALID_LEGALIZED_FOLDERS = new Set<LegalizedFolderName>([
   'PUXADA',
   'MELHORIA PROGRESSIVA',
   'ESTRATIFICAÇÃO PROBLEMAS',
+  'DTO',
+  'RECIBOS',
 ]);
 const EQUIPMENT_STANDARD_ID_PREFIX = 'equip-';
 const VISUAL_STANDARD_ID_PREFIX = 'vp-';
@@ -120,6 +122,8 @@ const CAMINHOES_ID_PREFIX = 'cm-';
 const PUXADA_ID_PREFIX = 'px-';
 const MELHORIA_PROGRESSIVA_ID_PREFIX = 'mp-';
 const ESTRATIFICACAO_PROBLEMAS_ID_PREFIX = 'ep-';
+const DTO_ID_PREFIX = 'dto-';
+export const RECIBOS_ID_PREFIX = 'rec-';
 
 function toFirestoreLegalizedFolder(folder: LegalizedFolderName): string {
   if (
@@ -132,7 +136,9 @@ function toFirestoreLegalizedFolder(folder: LegalizedFolderName): string {
     folder === 'CAMINHÕES' ||
     folder === 'PUXADA' ||
     folder === 'MELHORIA PROGRESSIVA' ||
-    folder === 'ESTRATIFICAÇÃO PROBLEMAS'
+    folder === 'ESTRATIFICAÇÃO PROBLEMAS' ||
+    folder === 'DTO' ||
+    folder === 'RECIBOS'
   ) {
     return 'ANTT';
   }
@@ -594,9 +600,13 @@ export function mapDocToLegalizedDoc(data: Record<string, unknown>): LegalizedDo
                     ? 'MELHORIA PROGRESSIVA'
                     : id.startsWith(ESTRATIFICACAO_PROBLEMAS_ID_PREFIX)
                       ? 'ESTRATIFICAÇÃO PROBLEMAS'
-                      : VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
-                        ? (data.folder as LegalizedFolderName)
-                        : 'ANTT';
+                      : id.startsWith(DTO_ID_PREFIX)
+                        ? 'DTO'
+                        : id.startsWith(RECIBOS_ID_PREFIX)
+                          ? 'RECIBOS'
+                          : VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
+                            ? (data.folder as LegalizedFolderName)
+                            : 'ANTT';
   const rawSub = data.subfolder as CrlvSubfolderName | undefined;
   const subfolder =
     folder === 'CRLV' && rawSub && VALID_CRLV_SUBFOLDERS.has(rawSub) ? rawSub : '';
@@ -1457,7 +1467,13 @@ export async function addLegalizedDocInFirestore(
                       : item.folder === 'ESTRATIFICAÇÃO PROBLEMAS' &&
                           !rawSafeId.startsWith(ESTRATIFICACAO_PROBLEMAS_ID_PREFIX)
                         ? `${ESTRATIFICACAO_PROBLEMAS_ID_PREFIX}${rawSafeId}`.slice(0, 120)
-                        : rawSafeId;
+                        : item.folder === 'DTO' &&
+                            !rawSafeId.startsWith(DTO_ID_PREFIX)
+                          ? `${DTO_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+                          : item.folder === 'RECIBOS' &&
+                              !rawSafeId.startsWith(RECIBOS_ID_PREFIX)
+                            ? `${RECIBOS_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+                            : rawSafeId;
   const path = `legalizedDocs/${safeId}`;
   try {
     const rawDataUrl = typeof item.fileDataUrl === 'string' ? item.fileDataUrl : '';

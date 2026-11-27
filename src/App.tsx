@@ -15,7 +15,7 @@ import {
   Vehicle,
   VehicleDocumentRecord,
 } from './types/fleet';
-import { CHECKLIST_ITEMS, resolveVehiclePhoto } from './data/fleetSeed';
+import { getChecklistItemsForCategory, resolveVehiclePhoto } from './data/fleetSeed';
 import {
   OperationType,
   SHARED_WORKSPACE_ID,
@@ -70,9 +70,13 @@ import { VisualStandardsView } from './components/VisualStandardsView';
 import { QualitySafetyRequirementsView } from './components/QualitySafetyRequirementsView';
 import { ProblemStratificationView } from './components/ProblemStratificationView';
 import { QualityIvView } from './components/QualityIvView';
+import { RepairIvView } from './components/RepairIvView';
+import { DtoView } from './components/DtoView';
 import { SAFETY_CHECK_SEED_ROWS } from './data/safetyCheckSeed';
 import { collectStratifiedProblems } from './data/problemStratification';
 import { computeQualityIvAnalysis } from './data/qualityIv';
+import { computeRepairIvAnalysis } from './data/repairIv';
+import { parseDtoRecords } from './data/dtoChecklist';
 import { VehicleModal } from './components/VehicleModal';
 import { ImportFleetModal } from './components/ImportFleetModal';
 import { LoginScreen } from './components/LoginScreen';
@@ -100,7 +104,7 @@ export default function App() {
   const [firestoreLoaded, setFirestoreLoaded] = useState(false);
 
   const [activeSection, setActiveSection] = useState<NavSection>('bloco-1');
-  const [bloco1Group, setBloco1Group] = useState<'1.1' | '1.2' | '1.3' | null>(null);
+  const [bloco1Group, setBloco1Group] = useState<'1.1' | '1.2' | '1.3' | '1.4' | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -315,7 +319,8 @@ export default function App() {
           d.folder !== 'CAMINHÕES' &&
           d.folder !== 'PUXADA' &&
           d.folder !== 'MELHORIA PROGRESSIVA' &&
-          d.folder !== 'ESTRATIFICAÇÃO PROBLEMAS'
+          d.folder !== 'ESTRATIFICAÇÃO PROBLEMAS' &&
+          d.folder !== 'DTO'
       ),
     [legalizedDocs]
   );
@@ -375,6 +380,13 @@ export default function App() {
     [legalizedDocs]
   );
 
+  const dtoDocs = useMemo(
+    () => legalizedDocs.filter((d) => d.folder === 'DTO'),
+    [legalizedDocs]
+  );
+
+  const dtoCount = useMemo(() => parseDtoRecords(dtoDocs).length, [dtoDocs]);
+
   const vehicles: VehicleFirestoreDoc[] = useMemo(() => {
     return rawVehicles.map((v) => {
       const customPhoto = remotePhotoByVehicleId[v.id];
@@ -427,6 +439,28 @@ export default function App() {
       complianceChecks,
       safetyCheckDocs,
       visualStandardDocs,
+      blitzEntregaDocs,
+      blitzPuxadaDocs,
+      blitzEmpilhadeiraDocs,
+      caminhoesDocs,
+      puxadaCheckDocs,
+      estratificacaoDocs,
+    ]
+  );
+
+  const repairIvPct = useMemo(
+    () =>
+      computeRepairIvAnalysis({
+        vehicles,
+        blitzEntregaDocs,
+        blitzPuxadaDocs,
+        blitzEmpilhadeiraDocs,
+        caminhoesDocs,
+        puxadaCheckDocs,
+        estratificacaoDocs,
+      }).ivReparoPct,
+    [
+      vehicles,
       blitzEntregaDocs,
       blitzPuxadaDocs,
       blitzEmpilhadeiraDocs,
@@ -544,9 +578,12 @@ export default function App() {
     if (!target) return;
     const ts = nowTimestamp();
     setLastUpdated(ts);
-    const nextChecklist = Object.fromEntries(
-      CHECKLIST_ITEMS.map((item) => [item.key, value])
-    ) as Vehicle['checklist'];
+    const nextChecklist = {
+      ...target.checklist,
+      ...Object.fromEntries(
+        getChecklistItemsForCategory(target.category).map((item) => [item.key, value])
+      ),
+    } as Vehicle['checklist'];
 
     void updateVehicleChecklistInFirestore(target, nextChecklist, SHARED_WORKSPACE_ID, ts).catch(
       captureAsyncError
@@ -763,6 +800,8 @@ export default function App() {
                   progressiveImprovementCount={melhoriaProgressivaDocs.length}
                   problemStratificationCount={problemStratificationCount}
                   qualityIvPct={qualityIvPct}
+                  repairIvPct={repairIvPct}
+                  dtoCount={dtoCount}
                   activeGroup={bloco1Group}
                   onSelectGroup={setBloco1Group}
                 />
@@ -883,6 +922,31 @@ export default function App() {
                   estratificacaoDocs={estratificacaoDocs}
                   onAddRecords={handleAddLegalizedDocs}
                   onUpdateRecord={handleUpdateLegalizedDoc}
+                />
+              )}
+
+              {activeSection === 'tempo-reparo-iv' && (
+                <RepairIvView
+                  vehicles={vehicles}
+                  blitzEntregaDocs={blitzEntregaDocs}
+                  blitzPuxadaDocs={blitzPuxadaDocs}
+                  blitzEmpilhadeiraDocs={blitzEmpilhadeiraDocs}
+                  caminhoesDocs={caminhoesDocs}
+                  puxadaCheckDocs={puxadaCheckDocs}
+                  estratificacaoDocs={estratificacaoDocs}
+                  onAddRecords={handleAddLegalizedDocs}
+                  onUpdateRecord={handleUpdateLegalizedDoc}
+                  onDeleteRecord={handleDeleteLegalizedDoc}
+                />
+              )}
+
+              {activeSection === 'dto' && (
+                <DtoView
+                  vehicles={vehicles}
+                  dtoDocs={dtoDocs}
+                  onAddRecords={handleAddLegalizedDocs}
+                  onUpdateRecord={handleUpdateLegalizedDoc}
+                  onDeleteRecord={handleDeleteLegalizedDoc}
                 />
               )}
 

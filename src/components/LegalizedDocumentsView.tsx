@@ -22,7 +22,7 @@ import {
   Vehicle,
 } from '../types/fleet';
 import { DocumentPreviewContent } from './DocumentPreviewContent';
-import { MAX_LEGALIZED_FILE_BYTES } from '../services/fleetFirestore';
+import { MAX_LEGALIZED_FILE_BYTES, RECIBOS_ID_PREFIX } from '../services/fleetFirestore';
 import { PLATFORM_CARD_GRID_CLASS, PlatformCard } from './PlatformCard';
 
 export const CRLV_SUBFOLDERS: {
@@ -81,6 +81,13 @@ export const LEGALIZED_FOLDERS: {
     title: 'CRONOTACÓGRAFOS',
     subtitle: 'Equipamento que registra velocidade, tempo e distância (INMETRO)',
     defaultRefDate: '16/07/2026',
+  },
+  {
+    id: 'RECIBOS',
+    kicker: '05 · Comprovantes',
+    title: 'RECIBOS',
+    subtitle: 'Recibos e comprovantes de pagamento, taxas e serviços da frota',
+    defaultRefDate: '27/11/2026',
   },
 ];
 
@@ -233,6 +240,8 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
       'PUXADA': 0,
       'MELHORIA PROGRESSIVA': 0,
       'ESTRATIFICAÇÃO PROBLEMAS': 0,
+      DTO: 0,
+      RECIBOS: 0,
     };
     for (const r of records) {
       if (counts[r.folder] !== undefined) {
@@ -280,7 +289,7 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
       return {
         id: 'ALL' as const,
         title: 'TODAS AS PASTAS (1.1.1 DOCUMENTOS LEGALIZADOS)',
-        subtitle: 'Visão unificada de todos os arquivos anexados nas 4 pastas oficiais',
+        subtitle: 'Visão unificada de todos os arquivos anexados nas 5 pastas oficiais',
       };
     }
     if (selectedFolder === 'CRLV' && selectedCrlvSubfolder !== 'ALL') {
@@ -333,8 +342,9 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
       const dataUrl = await readFileAsDataUrl(file);
       const detectedPlate = forcedPlate || detectPlateFromFilename(file.name, vehicles);
       const subfolder = resolveSubfolderForUpload(folder, detectedPlate, forcedSubfolder);
+      const prefix = folder === 'RECIBOS' ? RECIBOS_ID_PREFIX : 'leg-';
       created.push({
-        id: `leg-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+        id: `${prefix}${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
         folder,
         subfolder,
         fileName: file.name,
@@ -391,8 +401,9 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
           continue;
         }
         const dataUrl = await readFileAsDataUrl(file);
+        const prefix = draftFolder === 'RECIBOS' ? RECIBOS_ID_PREFIX : 'leg-';
         created.push({
-          id: `leg-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+          id: `${prefix}${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
           folder: draftFolder,
           subfolder: draftFolder === 'CRLV' ? draftSubfolder : '',
           fileName: file.name,
@@ -500,6 +511,8 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
           docValue = v.expiryDates.cronotacografo || 'Não informado';
         else if (folder === 'CONTRATO DE LOCAÇÃO VEICULAR')
           docValue = v.ownership === 'Terceiro' ? 'Terceiro / Locado' : 'Frota Própria';
+        else if (folder === 'RECIBOS')
+          docValue = attached.length > 0 ? `${attached.length} recibo(s)` : 'Sem recibos';
 
         return {
           vehicle: v,
@@ -590,7 +603,7 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
         }}
       />
 
-      {/* 4 Official Document Category Cards */}
+      {/* 5 Official Document Category Cards */}
       <section aria-label="Categorias de Documentos Legalizados">
         <div className={PLATFORM_CARD_GRID_CLASS}>
           {LEGALIZED_FOLDERS.map((folder) => {
@@ -1306,14 +1319,34 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                onUpdateRecord(editingRecord.id, {
-                  folder: editFolder,
-                  subfolder: editFolder === 'CRLV' ? editSubfolder : '',
-                  plate: editPlate || 'GERAL',
-                  expiryDate: editExpiry.trim(),
-                  referenceDate: editRefDate.trim(),
-                  notes: editNotes.trim(),
-                });
+                const movingRecibosBoundary =
+                  editingRecord.folder !== editFolder &&
+                  (editingRecord.folder === 'RECIBOS' || editFolder === 'RECIBOS');
+
+                if (movingRecibosBoundary) {
+                  const nextPrefix = editFolder === 'RECIBOS' ? RECIBOS_ID_PREFIX : 'leg-';
+                  const migratedRecord: LegalizedDocumentRecord = {
+                    ...editingRecord,
+                    id: `${nextPrefix}${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                    folder: editFolder,
+                    subfolder: editFolder === 'CRLV' ? editSubfolder : '',
+                    plate: editPlate || 'GERAL',
+                    expiryDate: editExpiry.trim(),
+                    referenceDate: editRefDate.trim(),
+                    notes: editNotes.trim(),
+                  };
+                  onAddRecords([migratedRecord]);
+                  onDeleteRecord(editingRecord.id);
+                } else {
+                  onUpdateRecord(editingRecord.id, {
+                    folder: editFolder,
+                    subfolder: editFolder === 'CRLV' ? editSubfolder : '',
+                    plate: editPlate || 'GERAL',
+                    expiryDate: editExpiry.trim(),
+                    referenceDate: editRefDate.trim(),
+                    notes: editNotes.trim(),
+                  });
+                }
                 setEditingRecord(null);
               }}
               className="p-5 space-y-4"

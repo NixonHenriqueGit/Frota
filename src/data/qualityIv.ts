@@ -14,7 +14,7 @@ import {
   CAMINHOES_SEED_ROWS,
   parseCaminhoesRecord,
 } from './caminhoesCheckSeed';
-import { CHECKLIST_ITEMS } from './fleetSeed';
+import { getChecklistItemsForCategory } from './fleetSeed';
 import {
   COMPLIANCE_MONTH_TO_SHORT,
   STRATIFIED_MONTHS,
@@ -981,15 +981,16 @@ export function computeQualityIvAnalysis({
     });
   }
 
-  // 8. Checklists da Frota 15 itens (1.1.2)
+  // 8. Checklists da Frota por categoria (1.1.2)
   for (const v of vehicles) {
-    const totalItems = CHECKLIST_ITEMS.length;
+    const categoryItems = getChecklistItemsForCategory(v.category);
+    const totalItems = categoryItems.length;
     let okCount = 0;
-    for (const item of CHECKLIST_ITEMS) {
+    for (const item of categoryItems) {
       if (v.checklist[item.key]) okCount += 1;
     }
     const nokCount = totalItems - okCount;
-    const conformityPct = Math.round((okCount / totalItems) * 100);
+    const conformityPct = totalItems > 0 ? Math.round((okCount / totalItems) * 100) : 100;
     const flags: string[] = [];
     let traceScore = 100;
     if (!v.fleetNumber.trim()) {
@@ -1002,7 +1003,7 @@ export function computeQualityIvAnalysis({
     }
     if (okCount === 0) {
       traceScore -= 30;
-      flags.push('Checklist 15 itens ainda não preenchido');
+      flags.push(`Checklist (${v.category}) ainda não preenchido`);
     }
     const rigorPct =
       okCount === 0

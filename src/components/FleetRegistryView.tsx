@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Check,
+  Columns,
   Download,
   Edit3,
   Plus,
@@ -12,7 +13,8 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { Sector, Vehicle, VehicleCategory, VehicleStatus } from '../types/fleet';
+import { ChecklistKey, Sector, Vehicle, VehicleCategory, VehicleStatus } from '../types/fleet';
+import { getChecklistItemsForCategory } from '../data/fleetSeed';
 import {
   downloadCSV,
   formatCurrencyBRL,
@@ -33,8 +35,14 @@ interface FleetRegistryViewProps {
   onInspectVehicle: (vehicleId: string) => void;
 }
 
-const BoolCell: React.FC<{ value: boolean }> = ({ value }) =>
-  value ? (
+const BoolCell: React.FC<{ value: boolean; applicable?: boolean }> = ({
+  value,
+  applicable = true,
+}) => {
+  if (!applicable) {
+    return <span className="text-[11px] font-medium text-slate-300">—</span>;
+  }
+  return value ? (
     <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
       <Check className="w-3.5 h-3.5" />
       Sim
@@ -45,6 +53,11 @@ const BoolCell: React.FC<{ value: boolean }> = ({ value }) =>
       Não
     </span>
   );
+};
+
+function isKeyApplicable(category: VehicleCategory, key: ChecklistKey): boolean {
+  return getChecklistItemsForCategory(category).some((item) => item.key === key);
+}
 
 export const FleetRegistryView: React.FC<FleetRegistryViewProps> = ({
   vehicles,
@@ -63,6 +76,7 @@ export const FleetRegistryView: React.FC<FleetRegistryViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'Todos' | VehicleStatus>('Todos');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const [showAllColumns, setShowAllColumns] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -186,20 +200,20 @@ export const FleetRegistryView: React.FC<FleetRegistryViewProps> = ({
         v.cargoCapacity,
         v.status2,
         v.hbFrota ? 'Sim' : 'Não',
-        v.checklist.macaco ? 'Sim' : 'Não',
-        v.checklist.chaveRoda ? 'Sim' : 'Não',
-        v.checklist.caboForca ? 'Sim' : 'Não',
-        v.checklist.pinoCambao ? 'Sim' : 'Não',
-        v.checklist.triangulo ? 'Sim' : 'Não',
-        v.checklist.extintor ? 'Sim' : 'Não',
-        v.checklist.cones ? 'Sim' : 'Não',
-        v.checklist.tacografo ? 'Sim' : 'Não',
-        v.checklist.step ? 'Sim' : 'Não',
-        v.checklist.pneus ? 'Sim' : 'Não',
-        v.checklist.plataforma ? 'Sim' : 'Não',
-        v.checklist.estribo ? 'Sim' : 'Não',
-        v.checklist.kitErgonomico ? 'Sim' : 'Não',
-        v.checklist.sensorCinto ? 'Sim' : 'Não',
+        isKeyApplicable(v.category, 'macaco') ? (v.checklist.macaco ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'chaveRoda') ? (v.checklist.chaveRoda ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'caboForca') ? (v.checklist.caboForca ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'pinoCambao') ? (v.checklist.pinoCambao ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'triangulo') ? (v.checklist.triangulo ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'extintor') ? (v.checklist.extintor ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'cones') ? (v.checklist.cones ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'tacografo') ? (v.checklist.tacografo ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'step') ? (v.checklist.step ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'pneus') ? (v.checklist.pneus ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'plataforma') ? (v.checklist.plataforma ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'estribo') ? (v.checklist.estribo ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'kitErgonomico') ? (v.checklist.kitErgonomico ? 'Sim' : 'Não') : 'N/A',
+        isKeyApplicable(v.category, 'sensorCinto') ? (v.checklist.sensorCinto ? 'Sim' : 'Não') : 'N/A',
         v.fleetAgeYears,
         v.replacementTermYears,
         v.replacementTermKmHours,
@@ -251,7 +265,6 @@ export const FleetRegistryView: React.FC<FleetRegistryViewProps> = ({
             <option value="Vendas">Vendas</option>
             <option value="Puxada">Puxada</option>
             <option value="Armazém">Armazém</option>
-            <option value="Marketing">Marketing</option>
           </select>
 
           <select
@@ -304,16 +317,164 @@ export const FleetRegistryView: React.FC<FleetRegistryViewProps> = ({
 
       {/* Full Spreadsheet Table */}
       <div className="rounded-xl bg-white border border-slate-200 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 bg-[#0A2E5C] text-white">
+        <div className="flex items-center justify-between px-4 py-3 bg-[#0A2E5C] text-white flex-wrap gap-2">
           <h2 className="font-display text-sm font-bold">
-            Cadastro Completo da Frota ({filtered.length} veículos)
+            Cadastro da Frota ({filtered.length} veículos)
           </h2>
-          <span className="text-xs text-blue-100">
-            Role horizontalmente para visualizar todas as colunas da planilha
-          </span>
+          <button
+            type="button"
+            onClick={() => setShowAllColumns((prev) => !prev)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-semibold text-white cursor-pointer"
+          >
+            <Columns className="w-3.5 h-3.5" />
+            <span>{showAllColumns ? 'Visão Simplificada' : 'Ver Planilha Completa (60 col.)'}</span>
+          </button>
         </div>
 
-        <div className="overflow-x-auto">
+        {!showAllColumns ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
+                  <th className="py-2.5 px-3 whitespace-nowrap">Placa</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Nº Frota</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Modelo / Fabricante</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Categoria</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Setor</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Empresa</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap text-right">Km/Horas</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">CRLV</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Status</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-12 text-center text-slate-500">
+                      Nenhum veículo cadastrado ainda. Clique em{' '}
+                      <button
+                        type="button"
+                        onClick={onImportPlanilha}
+                        className="text-[#0B63CE] font-semibold underline cursor-pointer"
+                      >
+                        Importar Planilha
+                      </button>{' '}
+                      ou em{' '}
+                      <button
+                        type="button"
+                        onClick={onAddVehicle}
+                        className="text-[#0A2E5C] font-semibold underline cursor-pointer"
+                      >
+                        Cadastrar Veículo
+                      </button>
+                      {onLoadDefaultFleet && vehicles.length === 0 && (
+                        <>
+                          {' '}
+                          ou{' '}
+                          <button
+                            type="button"
+                            onClick={onLoadDefaultFleet}
+                            className="text-emerald-700 font-semibold underline cursor-pointer"
+                          >
+                            Carregar Frota Padrão
+                          </button>
+                        </>
+                      )}
+                      .
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((v) => (
+                    <tr key={v.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => onInspectVehicle(v.id)}
+                          className="font-mono-tabular font-bold text-[#0B63CE] hover:underline cursor-pointer"
+                        >
+                          {v.plate}
+                        </button>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono-tabular text-slate-600 whitespace-nowrap">
+                        {v.fleetNumber || '—'}
+                      </td>
+                      <td className="py-2.5 px-3 font-medium text-slate-900 whitespace-nowrap">
+                        {v.manufacturerModel}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
+                        {v.category}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
+                        {v.sector}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                        {v.company}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono-tabular text-slate-700 whitespace-nowrap">
+                        {formatKmOrHours(v.kmOrHours, v.unit)}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono-tabular text-slate-700 whitespace-nowrap">
+                        {v.expiryDates.crlv || '—'}
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <VehicleStatusBadge status={v.status} />
+                      </td>
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => onToggleStatus(v.id)}
+                            title={
+                              v.status === 'Ativo' ? 'Marcar como Parado' : 'Ativar veículo'
+                            }
+                            className="p-1.5 rounded text-slate-500 hover:text-[#0A2E5C] hover:bg-slate-100 cursor-pointer"
+                          >
+                            {v.status === 'Ativo' ? (
+                              <ToggleRight className="w-4 h-4 text-emerald-600" />
+                            ) : (
+                              <ToggleLeft className="w-4 h-4 text-amber-600" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onEditVehicle(v)}
+                            title="Editar veículo"
+                            className="p-1.5 rounded text-slate-500 hover:text-[#0A2E5C] hover:bg-slate-100 cursor-pointer"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          {confirmDeleteId === v.id ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onDeleteVehicle(v.id);
+                                setConfirmDeleteId(null);
+                              }}
+                              className="px-2 py-1 rounded bg-red-600 text-white text-[11px] font-semibold cursor-pointer"
+                            >
+                              Confirmar
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(v.id)}
+                              title="Remover veículo"
+                              className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
           <table className="w-max min-w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
@@ -559,46 +720,46 @@ export const FleetRegistryView: React.FC<FleetRegistryViewProps> = ({
                       <BoolCell value={v.hbFrota} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.macaco} />
+                      <BoolCell value={v.checklist.macaco} applicable={isKeyApplicable(v.category, 'macaco')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.chaveRoda} />
+                      <BoolCell value={v.checklist.chaveRoda} applicable={isKeyApplicable(v.category, 'chaveRoda')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.caboForca} />
+                      <BoolCell value={v.checklist.caboForca} applicable={isKeyApplicable(v.category, 'caboForca')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.pinoCambao} />
+                      <BoolCell value={v.checklist.pinoCambao} applicable={isKeyApplicable(v.category, 'pinoCambao')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.triangulo} />
+                      <BoolCell value={v.checklist.triangulo} applicable={isKeyApplicable(v.category, 'triangulo')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.extintor} />
+                      <BoolCell value={v.checklist.extintor} applicable={isKeyApplicable(v.category, 'extintor')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.cones} />
+                      <BoolCell value={v.checklist.cones} applicable={isKeyApplicable(v.category, 'cones')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.tacografo} />
+                      <BoolCell value={v.checklist.tacografo} applicable={isKeyApplicable(v.category, 'tacografo')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.step} />
+                      <BoolCell value={v.checklist.step} applicable={isKeyApplicable(v.category, 'step')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.pneus} />
+                      <BoolCell value={v.checklist.pneus} applicable={isKeyApplicable(v.category, 'pneus')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.plataforma} />
+                      <BoolCell value={v.checklist.plataforma} applicable={isKeyApplicable(v.category, 'plataforma')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.estribo} />
+                      <BoolCell value={v.checklist.estribo} applicable={isKeyApplicable(v.category, 'estribo')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.kitErgonomico} />
+                      <BoolCell value={v.checklist.kitErgonomico} applicable={isKeyApplicable(v.category, 'kitErgonomico')} />
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <BoolCell value={v.checklist.sensorCinto} />
+                      <BoolCell value={v.checklist.sensorCinto} applicable={isKeyApplicable(v.category, 'sensorCinto')} />
                     </td>
                     <td className="py-2.5 px-3 font-mono-tabular text-center text-slate-700 whitespace-nowrap">
                       {v.fleetAgeYears}
@@ -677,6 +838,7 @@ export const FleetRegistryView: React.FC<FleetRegistryViewProps> = ({
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {/* Confirm Clear All Modal */}

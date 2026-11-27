@@ -7,7 +7,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { ChecklistKey, Vehicle } from '../types/fleet';
-import { CHECKLIST_ITEMS, normalizeAssetUrl } from '../data/fleetSeed';
+import { getChecklistItemsForCategory, normalizeAssetUrl } from '../data/fleetSeed';
 import { VehicleStatusBadge } from './StatusBadges';
 
 interface ChecklistsViewProps {
@@ -45,7 +45,8 @@ export const ChecklistsView: React.FC<ChecklistsViewProps> = ({
     let totalChecks = 0;
     let passedChecks = 0;
     for (const v of vehicles) {
-      for (const item of CHECKLIST_ITEMS) {
+      const items = getChecklistItemsForCategory(v.category);
+      for (const item of items) {
         totalChecks += 1;
         if (v.checklist[item.key]) passedChecks += 1;
       }
@@ -53,8 +54,13 @@ export const ChecklistsView: React.FC<ChecklistsViewProps> = ({
     return totalChecks > 0 ? Math.round((passedChecks / totalChecks) * 100) : 0;
   }, [vehicles]);
 
+  const activeChecklistItems = useMemo(
+    () => (activeVehicle ? getChecklistItemsForCategory(activeVehicle.category) : []),
+    [activeVehicle]
+  );
+
   const activeCheckedCount = activeVehicle
-    ? CHECKLIST_ITEMS.filter((item) => activeVehicle.checklist[item.key]).length
+    ? activeChecklistItems.filter((item) => activeVehicle.checklist[item.key]).length
     : 0;
 
   return (
@@ -87,8 +93,9 @@ export const ChecklistsView: React.FC<ChecklistsViewProps> = ({
             </div>
           ) : (
             filteredVehicles.map((v) => {
-              const passed = CHECKLIST_ITEMS.filter((i) => v.checklist[i.key]).length;
-              const total = CHECKLIST_ITEMS.length;
+              const items = getChecklistItemsForCategory(v.category);
+              const passed = items.filter((i) => v.checklist[i.key]).length;
+              const total = items.length;
               const isSelected = activeVehicle?.id === v.id;
               return (
                 <button
@@ -105,7 +112,7 @@ export const ChecklistsView: React.FC<ChecklistsViewProps> = ({
                         {v.plate}
                       </span>
                       <span className="text-[11px] text-slate-500 truncate">
-                        {v.sector}
+                        {v.category} · {v.sector}
                       </span>
                     </div>
                     <div className="text-xs font-medium text-slate-800 truncate mt-0.5">
@@ -183,16 +190,25 @@ export const ChecklistsView: React.FC<ChecklistsViewProps> = ({
               </div>
 
               <div className="text-left sm:text-right">
-                <div className="text-xs text-slate-500">Itens Conforme</div>
+                <div className="text-xs text-slate-500">
+                  Itens Conforme ({activeVehicle.category})
+                </div>
                 <div className="font-display text-2xl font-extrabold text-[#0A2E5C] tabular-nums">
-                  {activeCheckedCount} / {CHECKLIST_ITEMS.length}
+                  {activeCheckedCount} / {activeChecklistItems.length}
                 </div>
               </div>
             </div>
 
-            {/* 14 Checklist Items Grid */}
+            {/* Category-Specific Checklist Items Grid */}
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>
+                Checklist específico para <strong className="text-slate-800">{activeVehicle.category}</strong>
+              </span>
+              <span className="font-mono-tabular">{activeChecklistItems.length} itens</span>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {CHECKLIST_ITEMS.map((item) => {
+              {activeChecklistItems.map((item) => {
                 const checked = activeVehicle.checklist[item.key];
                 return (
                   <button

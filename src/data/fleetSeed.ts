@@ -81,6 +81,58 @@ export const CHECKLIST_ITEMS: ChecklistDefinition[] = [
   { key: 'cofre', label: 'Cofre' },
 ];
 
+export const CHECKLIST_ITEMS_BY_CATEGORY: Record<VehicleCategory, ChecklistDefinition[]> = {
+  'Caminhão': CHECKLIST_ITEMS,
+  'Tração Caminhão Trator': [
+    { key: 'macaco', label: 'Macaco' },
+    { key: 'chaveRoda', label: 'Chave de roda' },
+    { key: 'caboForca', label: 'Cabo de força' },
+    { key: 'pinoCambao', label: 'Pino cambão / Quinta roda' },
+    { key: 'triangulo', label: 'Triângulo' },
+    { key: 'extintor', label: 'Extintor' },
+    { key: 'cones', label: 'Cone' },
+    { key: 'tacografo', label: 'Tacógrafo' },
+    { key: 'step', label: 'Step' },
+    { key: 'pneus', label: 'Pneus' },
+    { key: 'estribo', label: 'Estribo' },
+    { key: 'kitErgonomico', label: 'Kit Ergonômico' },
+    { key: 'sensorCinto', label: 'Sensor de cinto' },
+  ],
+  'Carga Semi-Reboque': [
+    { key: 'pinoCambao', label: 'Pino rei / Engate' },
+    { key: 'triangulo', label: 'Triângulo / Refletivos' },
+    { key: 'cones', label: 'Cone' },
+    { key: 'step', label: 'Step' },
+    { key: 'pneus', label: 'Pneus' },
+    { key: 'plataforma', label: 'Plataforma / Assoalho' },
+    { key: 'estribo', label: 'Estribo / Anticiclista' },
+  ],
+  'Frota Leve': [
+    { key: 'macaco', label: 'Macaco' },
+    { key: 'chaveRoda', label: 'Chave de roda' },
+    { key: 'triangulo', label: 'Triângulo' },
+    { key: 'extintor', label: 'Extintor' },
+    { key: 'cones', label: 'Cone' },
+    { key: 'step', label: 'Step' },
+    { key: 'pneus', label: 'Pneus' },
+    { key: 'kitErgonomico', label: 'Kit Ergonômico' },
+    { key: 'sensorCinto', label: 'Cinto / Sensor de cinto' },
+  ],
+  'Empilhadeira': [
+    { key: 'extintor', label: 'Extintor' },
+    { key: 'pneus', label: 'Pneus e rodas' },
+    { key: 'sensorCinto', label: 'Cinto / Sensor de cinto' },
+    { key: 'kitErgonomico', label: 'Assento / Kit ergonômico' },
+    { key: 'cones', label: 'Cones de sinalização' },
+  ],
+};
+
+export function getChecklistItemsForCategory(
+  category: VehicleCategory
+): ChecklistDefinition[] {
+  return CHECKLIST_ITEMS_BY_CATEGORY[category] ?? CHECKLIST_ITEMS;
+}
+
 export const CATEGORY_META: Record<
   VehicleCategory,
   { label: string; pluralLabel: string; color: string }

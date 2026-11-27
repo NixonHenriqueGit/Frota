@@ -7,7 +7,7 @@ import {
   VehicleDocumentRecord,
   VehicleEvidenceRecord,
 } from '../types/fleet';
-import { CHECKLIST_ITEMS } from '../data/fleetSeed';
+import { getChecklistItemsForCategory } from '../data/fleetSeed';
 import {
   downloadCSV,
   formatCurrencyBRL,
@@ -46,7 +46,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     let passedChecks = 0;
     let totalChecks = 0;
     vehicles.forEach((v) => {
-      CHECKLIST_ITEMS.forEach((item) => {
+      getChecklistItemsForCategory(v.category).forEach((item) => {
         totalChecks += 1;
         if (v.checklist[item.key]) passedChecks += 1;
       });
