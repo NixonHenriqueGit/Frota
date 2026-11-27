@@ -108,6 +108,7 @@ const VALID_LEGALIZED_FOLDERS = new Set<LegalizedFolderName>([
   'CAMINHÕES',
   'PUXADA',
   'MELHORIA PROGRESSIVA',
+  'ESTRATIFICAÇÃO PROBLEMAS',
 ]);
 const EQUIPMENT_STANDARD_ID_PREFIX = 'equip-';
 const VISUAL_STANDARD_ID_PREFIX = 'vp-';
@@ -118,6 +119,7 @@ const BLITZ_EMPILHADEIRA_ID_PREFIX = 'bm-';
 const CAMINHOES_ID_PREFIX = 'cm-';
 const PUXADA_ID_PREFIX = 'px-';
 const MELHORIA_PROGRESSIVA_ID_PREFIX = 'mp-';
+const ESTRATIFICACAO_PROBLEMAS_ID_PREFIX = 'ep-';
 
 function toFirestoreLegalizedFolder(folder: LegalizedFolderName): string {
   if (
@@ -129,7 +131,8 @@ function toFirestoreLegalizedFolder(folder: LegalizedFolderName): string {
     folder === 'BLITZ EMPILHADEIRA' ||
     folder === 'CAMINHÕES' ||
     folder === 'PUXADA' ||
-    folder === 'MELHORIA PROGRESSIVA'
+    folder === 'MELHORIA PROGRESSIVA' ||
+    folder === 'ESTRATIFICAÇÃO PROBLEMAS'
   ) {
     return 'ANTT';
   }
@@ -589,9 +592,11 @@ export function mapDocToLegalizedDoc(data: Record<string, unknown>): LegalizedDo
                   ? 'PUXADA'
                   : id.startsWith(MELHORIA_PROGRESSIVA_ID_PREFIX)
                     ? 'MELHORIA PROGRESSIVA'
-                    : VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
-                      ? (data.folder as LegalizedFolderName)
-                      : 'ANTT';
+                    : id.startsWith(ESTRATIFICACAO_PROBLEMAS_ID_PREFIX)
+                      ? 'ESTRATIFICAÇÃO PROBLEMAS'
+                      : VALID_LEGALIZED_FOLDERS.has(data.folder as LegalizedFolderName)
+                        ? (data.folder as LegalizedFolderName)
+                        : 'ANTT';
   const rawSub = data.subfolder as CrlvSubfolderName | undefined;
   const subfolder =
     folder === 'CRLV' && rawSub && VALID_CRLV_SUBFOLDERS.has(rawSub) ? rawSub : '';
@@ -1440,7 +1445,19 @@ export async function addLegalizedDocInFirestore(
               : item.folder === 'BLITZ EMPILHADEIRA' &&
                   !rawSafeId.startsWith(BLITZ_EMPILHADEIRA_ID_PREFIX)
                 ? `${BLITZ_EMPILHADEIRA_ID_PREFIX}${rawSafeId}`.slice(0, 120)
-                : rawSafeId;
+                : item.folder === 'CAMINHÕES' &&
+                    !rawSafeId.startsWith(CAMINHOES_ID_PREFIX)
+                  ? `${CAMINHOES_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+                  : item.folder === 'PUXADA' &&
+                      !rawSafeId.startsWith(PUXADA_ID_PREFIX)
+                    ? `${PUXADA_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+                    : item.folder === 'MELHORIA PROGRESSIVA' &&
+                        !rawSafeId.startsWith(MELHORIA_PROGRESSIVA_ID_PREFIX)
+                      ? `${MELHORIA_PROGRESSIVA_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+                      : item.folder === 'ESTRATIFICAÇÃO PROBLEMAS' &&
+                          !rawSafeId.startsWith(ESTRATIFICACAO_PROBLEMAS_ID_PREFIX)
+                        ? `${ESTRATIFICACAO_PROBLEMAS_ID_PREFIX}${rawSafeId}`.slice(0, 120)
+                        : rawSafeId;
   const path = `legalizedDocs/${safeId}`;
   try {
     const rawDataUrl = typeof item.fileDataUrl === 'string' ? item.fileDataUrl : '';

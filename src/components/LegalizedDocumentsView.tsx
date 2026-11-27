@@ -210,6 +210,7 @@ export const LegalizedDocumentsView: React.FC<LegalizedDocumentsViewProps> = ({
       'CAMINHÕES': 0,
       'PUXADA': 0,
       'MELHORIA PROGRESSIVA': 0,
+      'ESTRATIFICAÇÃO PROBLEMAS': 0,
     };
     for (const r of records) {
       if (counts[r.folder] !== undefined) {

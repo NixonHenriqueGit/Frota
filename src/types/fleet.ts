@@ -164,7 +164,8 @@ export type LegalizedFolderName =
   | 'BLITZ EMPILHADEIRA'
   | 'CAMINHÕES'
   | 'PUXADA'
-  | 'MELHORIA PROGRESSIVA';
+  | 'MELHORIA PROGRESSIVA'
+  | 'ESTRATIFICAÇÃO PROBLEMAS';
 
 export type BlitzKind = 'entrega' | 'puxada' | 'empilhadeira';
 
@@ -379,11 +380,45 @@ export type NavSection =
   | 'padroes-visuais'
   | 'lista-requisitos'
   | 'melhoria-progressiva'
+  | 'estratificacao-problemas'
   | 'visao-geral'
   | 'cadastro'
   | 'documentos'
   | 'evidencias'
   | 'checklists';
+
+export type ProblemCriticalityTier = 'CRÍTICO' | 'MENOS CRÍTICO';
+
+export type ProblemSeverityLevel =
+  | 'BLOQUEIO IMEDIATO'
+  | 'GRAVE'
+  | 'MÉDIO'
+  | 'LEVE';
+
+export type ProblemAssetKind =
+  | 'Veículo de Entrega'
+  | 'Equipamento de Manuseio'
+  | 'Veículo de Puxada';
+
+export type ProblemResolutionStatus = 'Aberto' | 'Em tratativa' | 'Resolvido';
+
+export interface StratifiedProblemRecord {
+  id: string;
+  sourceLabel: string;
+  isEditable: boolean;
+  month: ComplianceMonth;
+  date: string;
+  plate: string;
+  assetKind: ProblemAssetKind;
+  driverOrOperator: string;
+  occurrenceType: string;
+  itemName: string;
+  classification: 'SEGURANÇA' | 'QUALIDADE';
+  severityLevel: ProblemSeverityLevel;
+  criticalityTier: ProblemCriticalityTier;
+  details: string;
+  status: ProblemResolutionStatus;
+}
 
 export interface DashboardFilters {
   period: '12m' | '6m' | '30d' | 'all';

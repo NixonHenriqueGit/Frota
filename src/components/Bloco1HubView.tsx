@@ -13,6 +13,7 @@ interface Bloco1HubViewProps {
   visualStandardsCount: number;
   safetyChecksCount: number;
   progressiveImprovementCount: number;
+  problemStratificationCount: number;
   activeGroup: '1.1' | '1.2' | '1.3' | null;
   onSelectGroup: (group: '1.1' | '1.2' | '1.3' | null) => void;
 }
@@ -51,6 +52,7 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
   visualStandardsCount,
   safetyChecksCount,
   progressiveImprovementCount,
+  problemStratificationCount,
   activeGroup,
   onSelectGroup,
 }) => {
@@ -164,8 +166,17 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
           'Padrão Gestão de Checklists DPO - Pilar Frota e documentos de melhoria contínua (Word / PDF)',
         countLabel: `${String(progressiveImprovementCount).padStart(2, '0')} arq.`,
       },
+      {
+        id: 'estratificacao-problemas',
+        group: '1.3',
+        kicker: '1.3.3.4 · ESTRATIFICAÇÃO DIGITAL',
+        title: '1.3.3.4 ESTRATIFICAÇÃO DOS PROBLEMAS',
+        subtitle:
+          'Estratificação por veículo/equipamento de manuseio, tipo de ocorrência, motorista/operador e criticidade',
+        countLabel: `${String(problemStratificationCount).padStart(2, '0')} ocorr.`,
+      },
     ],
-    [progressiveImprovementCount]
+    [progressiveImprovementCount, problemStratificationCount]
   );
 
   const allModules = useMemo(

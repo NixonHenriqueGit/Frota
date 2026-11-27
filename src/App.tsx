@@ -68,9 +68,12 @@ import { ComplianceCheckView } from './components/ComplianceCheckView';
 import { EquipmentStandardsView } from './components/EquipmentStandardsView';
 import { VisualStandardsView } from './components/VisualStandardsView';
 import { QualitySafetyRequirementsView } from './components/QualitySafetyRequirementsView';
+import { ProblemStratificationView } from './components/ProblemStratificationView';
 import { SAFETY_CHECK_SEED_ROWS } from './data/safetyCheckSeed';
+import { collectStratifiedProblems } from './data/problemStratification';
 import { VehicleModal } from './components/VehicleModal';
 import { ImportFleetModal } from './components/ImportFleetModal';
+import { LoginScreen } from './components/LoginScreen';
 
 function nowTimestamp(): string {
   const d = new Date();
@@ -98,6 +101,7 @@ export default function App() {
   const [bloco1Group, setBloco1Group] = useState<'1.1' | '1.2' | '1.3' | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const [filters, setFilters] = useState<DashboardFilters>({
     period: '12m',
@@ -308,7 +312,8 @@ export default function App() {
           d.folder !== 'BLITZ EMPILHADEIRA' &&
           d.folder !== 'CAMINHÕES' &&
           d.folder !== 'PUXADA' &&
-          d.folder !== 'MELHORIA PROGRESSIVA'
+          d.folder !== 'MELHORIA PROGRESSIVA' &&
+          d.folder !== 'ESTRATIFICAÇÃO PROBLEMAS'
       ),
     [legalizedDocs]
   );
@@ -363,6 +368,11 @@ export default function App() {
     [legalizedDocs]
   );
 
+  const estratificacaoDocs = useMemo(
+    () => legalizedDocs.filter((d) => d.folder === 'ESTRATIFICAÇÃO PROBLEMAS'),
+    [legalizedDocs]
+  );
+
   const vehicles: VehicleFirestoreDoc[] = useMemo(() => {
     return rawVehicles.map((v) => {
       const customPhoto = remotePhotoByVehicleId[v.id];
@@ -372,6 +382,28 @@ export default function App() {
       };
     });
   }, [rawVehicles, remotePhotoByVehicleId]);
+
+  const problemStratificationCount = useMemo(
+    () =>
+      collectStratifiedProblems({
+        vehicles,
+        blitzEntregaDocs,
+        blitzPuxadaDocs,
+        blitzEmpilhadeiraDocs,
+        caminhoesDocs,
+        puxadaCheckDocs,
+        estratificacaoDocs,
+      }).length,
+    [
+      vehicles,
+      blitzEntregaDocs,
+      blitzPuxadaDocs,
+      blitzEmpilhadeiraDocs,
+      caminhoesDocs,
+      puxadaCheckDocs,
+      estratificacaoDocs,
+    ]
+  );
 
   useEffect(() => {
     if (vehicles.length === 0) {
@@ -648,6 +680,10 @@ export default function App() {
     void deleteComplianceCheckInFirestore(id, SHARED_WORKSPACE_ID, ts).catch(captureAsyncError);
   };
 
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
+  }
+
   return (
     <div className="min-h-screen flex bg-[#EEF3F9] text-slate-900">
       <Sidebar
@@ -658,8 +694,7 @@ export default function App() {
         }}
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
-        onOpenImportModal={() => setImportModalOpen(true)}
-        onLoadDefaultFleet={handleLoadDefaultFleet}
+        onLogout={() => setIsLoggedIn(false)}
       />
 
       <div className="flex-1 min-w-0 flex flex-col">
@@ -695,6 +730,7 @@ export default function App() {
                       : SAFETY_CHECK_SEED_ROWS.length
                   }
                   progressiveImprovementCount={melhoriaProgressivaDocs.length}
+                  problemStratificationCount={problemStratificationCount}
                   activeGroup={bloco1Group}
                   onSelectGroup={setBloco1Group}
                 />
@@ -783,6 +819,21 @@ export default function App() {
                   emptyTitle="Nenhum documento anexado em 1.3.2 Melhoria Progressiva"
                   summaryAriaLabel="Resumo de Melhoria Progressiva"
                   defaultNotesPlaceholder="Ex.: DPO - Pilar Frota - Padrão Gestão de Checklists..."
+                />
+              )}
+
+              {activeSection === 'estratificacao-problemas' && (
+                <ProblemStratificationView
+                  vehicles={vehicles}
+                  blitzEntregaDocs={blitzEntregaDocs}
+                  blitzPuxadaDocs={blitzPuxadaDocs}
+                  blitzEmpilhadeiraDocs={blitzEmpilhadeiraDocs}
+                  caminhoesDocs={caminhoesDocs}
+                  puxadaCheckDocs={puxadaCheckDocs}
+                  estratificacaoDocs={estratificacaoDocs}
+                  onAddRecords={handleAddLegalizedDocs}
+                  onUpdateRecord={handleUpdateLegalizedDoc}
+                  onDeleteRecord={handleDeleteLegalizedDoc}
                 />
               )}
 
