@@ -26,6 +26,7 @@ import {
   LegalizedDocumentRecord,
   SafetyCheckMonthKey,
   SafetyCheckOperation,
+  StratifiedProblemMoment,
   Vehicle,
 } from '../types/fleet';
 import {
@@ -141,6 +142,7 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
   const [mapa, setMapa] = useState('');
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
+  const [momento, setMomento] = useState<StratifiedProblemMoment>('Saída');
   const [itemsMap, setItemsMap] = useState<Record<string, BlitzItemStatus>>(() =>
     createAllOkMap(config)
   );
@@ -256,6 +258,7 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
     setMapa('');
     setNome('');
     setCpf('');
+    setMomento('Saída');
     setDataStr(nowDateBr());
     setHoraStr(nowTimeBr());
     setItemsMap(createAllOkMap(config));
@@ -285,6 +288,7 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
       placa: cleanPlate,
       nome: nome.trim(),
       cpf: cpf.trim(),
+      momento,
       items: itemsMap,
     };
 
@@ -346,6 +350,7 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
     setMapa(entry.mapa);
     setNome(entry.nome);
     setCpf(entry.cpf);
+    setMomento(entry.momento === 'Retorno' ? 'Retorno' : 'Saída');
     setItemsMap({ ...createAllOkMap(config), ...entry.items });
     setActiveStageKey(config.zones[0]?.key ?? null);
     setCompletedZones({});
@@ -576,7 +581,7 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
           <div className="p-4 bg-[#F7FAFE] border-b border-slate-200 space-y-3">
             {/* Primary Row: Vehicle Select, Month, Next Pending, Collapsible Fleet List */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-              <div className="md:col-span-5">
+              <div className="md:col-span-4">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <label className="text-[11px] font-extrabold uppercase tracking-wide text-[#06295A]">
                     1. {config.plateLabel} *
@@ -633,7 +638,7 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
                 )}
               </div>
 
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
                 <label className="block text-[11px] font-extrabold uppercase tracking-wide text-[#06295A] mb-1">
                   Mês *
                 </label>
@@ -650,7 +655,31 @@ export const BlitzWorkspace: React.FC<BlitzWorkspaceProps> = ({
                 </select>
               </div>
 
-              <div className="md:col-span-4 flex items-center">
+              <div className="md:col-span-3">
+                <label className="block text-[11px] font-extrabold uppercase tracking-wide text-[#06295A] mb-1">
+                  Momento
+                </label>
+                <div className="grid grid-cols-2 h-9 p-0.5 rounded-lg bg-slate-200/80 border border-slate-300">
+                  {(['Saída', 'Retorno'] as StratifiedProblemMoment[]).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setMomento(opt)}
+                      className={`rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        momento === opt
+                          ? opt === 'Saída'
+                            ? 'bg-[#0B3C7D] text-white shadow-xs'
+                            : 'bg-emerald-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-[#06295A]'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="md:col-span-3 flex items-center">
                 <button
                   type="button"
                   onClick={handleSelectNextPending}

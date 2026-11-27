@@ -26,6 +26,7 @@ import {
   PuxadaZoneKey,
   SafetyCheckMonthKey,
   SafetyCheckOperation,
+  StratifiedProblemMoment,
   Vehicle,
 } from '../types/fleet';
 import {
@@ -98,6 +99,7 @@ export const PuxadaCheckWorkspace: React.FC<PuxadaCheckWorkspaceProps> = ({
   const [placa, setPlaca] = useState('');
   const [dataStr, setDataStr] = useState(() => nowDateBr());
   const [responsavel, setResponsavel] = useState('');
+  const [momento, setMomento] = useState<StratifiedProblemMoment>('Saída');
   const [itemsMap, setItemsMap] = useState<Record<string, BlitzItemStatus>>(() =>
     createPuxadaAllOkMap()
   );
@@ -225,6 +227,7 @@ export const PuxadaCheckWorkspace: React.FC<PuxadaCheckWorkspaceProps> = ({
     setEditingRecordId(null);
     setPlaca(nextPlate);
     setDataStr(nowDateBr());
+    setMomento('Saída');
     setItemsMap(createPuxadaAllOkMap());
     setActiveStageKey(null);
     setCompletedZones({});
@@ -242,6 +245,7 @@ export const PuxadaCheckWorkspace: React.FC<PuxadaCheckWorkspaceProps> = ({
     setPlaca(entry.payload.placa);
     setDataStr(entry.payload.data || nowDateBr());
     setResponsavel(entry.payload.responsavel || '');
+    setMomento(entry.payload.momento === 'Retorno' ? 'Retorno' : 'Saída');
     setItemsMap({ ...createPuxadaAllOkMap(), ...entry.payload.items });
     setActiveStageKey(PUXADA_ZONES[0]?.key ?? null);
     setCompletedZones({});
@@ -319,6 +323,7 @@ export const PuxadaCheckWorkspace: React.FC<PuxadaCheckWorkspaceProps> = ({
       data: dataStr.trim() || nowDateBr(),
       responsavel: responsavel.trim(),
       percentual: stats.percent,
+      momento,
       items: { ...itemsMap },
     };
 
@@ -756,8 +761,8 @@ export const PuxadaCheckWorkspace: React.FC<PuxadaCheckWorkspaceProps> = ({
               </div>
             </div>
 
-            {/* Date, Responsible & Live % Card */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end pt-1">
+            {/* Date, Responsible, Moment & Live % Card */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end pt-1">
               <div>
                 <label className="block text-[11px] font-bold text-[#06295A] mb-1">
                   Data
@@ -782,6 +787,30 @@ export const PuxadaCheckWorkspace: React.FC<PuxadaCheckWorkspaceProps> = ({
                   placeholder="Nome do responsável"
                   className="w-full h-9 px-2.5 rounded-lg border border-slate-300 text-xs font-semibold text-[#06295A] bg-white focus:outline-none focus:ring-2 focus:ring-[#1565D8]"
                 />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#06295A] mb-1">
+                  Momento
+                </label>
+                <div className="grid grid-cols-2 h-9 p-0.5 rounded-lg bg-slate-200/80 border border-slate-300">
+                  {(['Saída', 'Retorno'] as StratifiedProblemMoment[]).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setMomento(opt)}
+                      className={`rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        momento === opt
+                          ? opt === 'Saída'
+                            ? 'bg-[#0B3C7D] text-white shadow-xs'
+                            : 'bg-emerald-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-[#06295A]'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div

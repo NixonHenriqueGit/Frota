@@ -69,8 +69,10 @@ import { EquipmentStandardsView } from './components/EquipmentStandardsView';
 import { VisualStandardsView } from './components/VisualStandardsView';
 import { QualitySafetyRequirementsView } from './components/QualitySafetyRequirementsView';
 import { ProblemStratificationView } from './components/ProblemStratificationView';
+import { QualityIvView } from './components/QualityIvView';
 import { SAFETY_CHECK_SEED_ROWS } from './data/safetyCheckSeed';
 import { collectStratifiedProblems } from './data/problemStratification';
+import { computeQualityIvAnalysis } from './data/qualityIv';
 import { VehicleModal } from './components/VehicleModal';
 import { ImportFleetModal } from './components/ImportFleetModal';
 import { LoginScreen } from './components/LoginScreen';
@@ -393,9 +395,38 @@ export default function App() {
         caminhoesDocs,
         puxadaCheckDocs,
         estratificacaoDocs,
+        includeHistoricalBase: true,
       }).length,
     [
       vehicles,
+      blitzEntregaDocs,
+      blitzPuxadaDocs,
+      blitzEmpilhadeiraDocs,
+      caminhoesDocs,
+      puxadaCheckDocs,
+      estratificacaoDocs,
+    ]
+  );
+
+  const qualityIvPct = useMemo(
+    () =>
+      computeQualityIvAnalysis({
+        vehicles,
+        complianceChecks,
+        safetyCheckDocs,
+        visualStandardDocs,
+        blitzEntregaDocs,
+        blitzPuxadaDocs,
+        blitzEmpilhadeiraDocs,
+        caminhoesDocs,
+        puxadaCheckDocs,
+        estratificacaoDocs,
+      }).ivScorePct,
+    [
+      vehicles,
+      complianceChecks,
+      safetyCheckDocs,
+      visualStandardDocs,
       blitzEntregaDocs,
       blitzPuxadaDocs,
       blitzEmpilhadeiraDocs,
@@ -731,6 +762,7 @@ export default function App() {
                   }
                   progressiveImprovementCount={melhoriaProgressivaDocs.length}
                   problemStratificationCount={problemStratificationCount}
+                  qualityIvPct={qualityIvPct}
                   activeGroup={bloco1Group}
                   onSelectGroup={setBloco1Group}
                 />
@@ -834,6 +866,23 @@ export default function App() {
                   onAddRecords={handleAddLegalizedDocs}
                   onUpdateRecord={handleUpdateLegalizedDoc}
                   onDeleteRecord={handleDeleteLegalizedDoc}
+                />
+              )}
+
+              {activeSection === 'qualidade-iv' && (
+                <QualityIvView
+                  vehicles={vehicles}
+                  complianceChecks={complianceChecks}
+                  safetyCheckDocs={safetyCheckDocs}
+                  visualStandardDocs={visualStandardDocs}
+                  blitzEntregaDocs={blitzEntregaDocs}
+                  blitzPuxadaDocs={blitzPuxadaDocs}
+                  blitzEmpilhadeiraDocs={blitzEmpilhadeiraDocs}
+                  caminhoesDocs={caminhoesDocs}
+                  puxadaCheckDocs={puxadaCheckDocs}
+                  estratificacaoDocs={estratificacaoDocs}
+                  onAddRecords={handleAddLegalizedDocs}
+                  onUpdateRecord={handleUpdateLegalizedDoc}
                 />
               )}
 

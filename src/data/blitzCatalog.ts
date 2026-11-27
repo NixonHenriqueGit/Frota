@@ -345,6 +345,7 @@ export function parseBlitzRecord(
       placa: String(parsed.placa ?? '').toUpperCase().trim(),
       nome: String(parsed.nome ?? ''),
       cpf: String(parsed.cpf ?? ''),
+      momento: parsed.momento === 'Retorno' ? 'Retorno' : 'Saída',
       items: cleanItems,
     };
   } catch {

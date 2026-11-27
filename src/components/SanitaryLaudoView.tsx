@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   FileText,
   Plus,
+  Save,
   Search,
   Trash2,
   Truck,
@@ -98,8 +99,29 @@ export const SanitaryLaudoView: React.FC<SanitaryLaudoViewProps> = ({
   const [editExpiry, setEditExpiry] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
+  // Inline editing state for Validade & Observação
+  const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
+  const [inlineExpiry, setInlineExpiry] = useState('');
+  const [inlineNotes, setInlineNotes] = useState('');
+
   // Preview modal state
   const [previewRecord, setPreviewRecord] = useState<LegalizedDocumentRecord | null>(null);
+
+  const startInlineEdit = (rec: LegalizedDocumentRecord) => {
+    setInlineEditingId(rec.id);
+    setInlineExpiry(rec.expiryDate || '');
+    setInlineNotes(rec.notes || '');
+  };
+
+  const saveInlineEdit = (rec: LegalizedDocumentRecord) => {
+    onUpdateRecord(rec.id, {
+      expiryDate: inlineExpiry.trim(),
+      notes: inlineNotes.trim(),
+    });
+    setInlineEditingId(null);
+    setUploadNotice(`Validade e observação de "${rec.fileName}" salvas.`);
+    setTimeout(() => setUploadNotice(null), 3000);
+  };
 
   const sortedVehicles = useMemo(
     () => [...vehicles].sort((a, b) => a.plate.localeCompare(b.plate)),
@@ -638,79 +660,155 @@ export const SanitaryLaudoView: React.FC<SanitaryLaudoViewProps> = ({
                         <td className="py-2.5 px-3 font-mono-tabular text-slate-700 whitespace-nowrap">
                           {rec.referenceDate || '—'}
                         </td>
-                        <td className="py-2.5 px-3 font-mono-tabular text-slate-700 whitespace-nowrap">
-                          {rec.expiryDate || '—'}
+                        <td className="py-2 px-3 font-mono-tabular text-slate-700 whitespace-nowrap">
+                          {inlineEditingId === rec.id ? (
+                            <input
+                              type="text"
+                              value={inlineExpiry}
+                              onChange={(e) => setInlineExpiry(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveInlineEdit(rec);
+                                if (e.key === 'Escape') setInlineEditingId(null);
+                              }}
+                              placeholder="DD/MM/AAAA"
+                              aria-label="Editar validade"
+                              className="w-28 h-7 px-2 rounded border border-[#1565D8] bg-white text-xs font-mono text-[#06295A] focus:outline-none focus:ring-2 focus:ring-[#1565D8]/25"
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => startInlineEdit(rec)}
+                              title="Clique para editar validade"
+                              className="text-left hover:text-[#1565D8] hover:underline cursor-pointer"
+                            >
+                              {rec.expiryDate || '—'}
+                            </button>
+                          )}
                         </td>
-                        <td className="py-2.5 px-3 text-slate-600 max-w-[260px] truncate">
-                          {rec.notes || '—'}
+                        <td className="py-2 px-3 text-slate-600 max-w-[260px]">
+                          {inlineEditingId === rec.id ? (
+                            <input
+                              type="text"
+                              value={inlineNotes}
+                              onChange={(e) => setInlineNotes(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveInlineEdit(rec);
+                                if (e.key === 'Escape') setInlineEditingId(null);
+                              }}
+                              placeholder="Adicionar observação..."
+                              aria-label="Editar observação"
+                              className="w-full min-w-[160px] h-7 px-2 rounded border border-[#1565D8] bg-white text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1565D8]/25"
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => startInlineEdit(rec)}
+                              title={rec.notes ? `${rec.notes} (clique para editar)` : 'Clique para adicionar observação'}
+                              className="text-left truncate block w-full hover:text-[#1565D8] hover:underline cursor-pointer"
+                            >
+                              {rec.notes || '—'}
+                            </button>
+                          )}
                         </td>
                         <td className="py-2.5 px-4 text-right whitespace-nowrap">
                           <div className="inline-flex items-center gap-1">
-                            {rec.fileDataUrl ? (
+                            {inlineEditingId === rec.id ? (
                               <>
                                 <button
                                   type="button"
-                                  onClick={() => setPreviewRecord(rec)}
-                                  title="Visualizar arquivo"
-                                  className="p-1.5 rounded-md text-[#1565D8] hover:bg-blue-50 cursor-pointer"
+                                  onClick={() => saveInlineEdit(rec)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-[0.71rem] font-bold cursor-pointer"
                                 >
-                                  <Eye className="w-3.5 h-3.5" />
+                                  <Save className="w-3.5 h-3.5" />
+                                  <span>Salvar</span>
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleDownload(rec)}
-                                  title="Baixar arquivo"
-                                  className="p-1.5 rounded-md text-slate-600 hover:text-[#06295A] hover:bg-slate-100 cursor-pointer"
+                                  onClick={() => setInlineEditingId(null)}
+                                  title="Cancelar edição"
+                                  className="p-1.5 rounded-md text-slate-500 hover:bg-slate-100 cursor-pointer"
                                 >
-                                  <Download className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setRowAttachTarget(rec);
-                                    rowAttachInputRef.current?.click();
-                                  }}
-                                  title="Substituir arquivo"
-                                  className="p-1.5 rounded-md text-slate-600 hover:text-[#06295A] hover:bg-slate-100 cursor-pointer"
-                                >
-                                  <UploadCloud className="w-3.5 h-3.5" />
+                                  <X className="w-3.5 h-3.5" />
                                 </button>
                               </>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setRowAttachTarget(rec);
-                                  rowAttachInputRef.current?.click();
-                                }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#0B3C7D] hover:bg-[#1565D8] text-white text-[0.71rem] font-semibold cursor-pointer mr-1"
-                              >
-                                <UploadCloud className="w-3.5 h-3.5" />
-                                <span>Anexar PDF</span>
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => startInlineEdit(rec)}
+                                  title="Editar validade e observação"
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 bg-white hover:bg-[#EAF2FD] hover:border-[#1565D8]/40 text-[#06295A] text-[0.71rem] font-semibold cursor-pointer mr-1"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>Editar</span>
+                                </button>
+                                {rec.fileDataUrl ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewRecord(rec)}
+                                      title="Visualizar arquivo"
+                                      className="p-1.5 rounded-md text-[#1565D8] hover:bg-blue-50 cursor-pointer"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownload(rec)}
+                                      title="Baixar arquivo"
+                                      className="p-1.5 rounded-md text-slate-600 hover:text-[#06295A] hover:bg-slate-100 cursor-pointer"
+                                    >
+                                      <Download className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setRowAttachTarget(rec);
+                                        rowAttachInputRef.current?.click();
+                                      }}
+                                      title="Substituir arquivo"
+                                      className="p-1.5 rounded-md text-slate-600 hover:text-[#06295A] hover:bg-slate-100 cursor-pointer"
+                                    >
+                                      <UploadCloud className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setRowAttachTarget(rec);
+                                      rowAttachInputRef.current?.click();
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#0B3C7D] hover:bg-[#1565D8] text-white text-[0.71rem] font-semibold cursor-pointer mr-1"
+                                  >
+                                    <UploadCloud className="w-3.5 h-3.5" />
+                                    <span>Anexar PDF</span>
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingRecord(rec);
+                                    setEditPlate(rec.plate || 'GERAL');
+                                    setEditRefDate(rec.referenceDate);
+                                    setEditExpiry(rec.expiryDate);
+                                    setEditNotes(rec.notes);
+                                  }}
+                                  title="Editar todos os detalhes"
+                                  className="p-1.5 rounded-md text-slate-600 hover:text-[#06295A] hover:bg-slate-100 cursor-pointer"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onDeleteRecord(rec.id)}
+                                  title="Excluir registro"
+                                  className="p-1.5 rounded-md text-red-500 hover:bg-red-50 cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingRecord(rec);
-                                setEditPlate(rec.plate || 'GERAL');
-                                setEditRefDate(rec.referenceDate);
-                                setEditExpiry(rec.expiryDate);
-                                setEditNotes(rec.notes);
-                              }}
-                              title="Editar informações"
-                              className="p-1.5 rounded-md text-slate-600 hover:text-[#06295A] hover:bg-slate-100 cursor-pointer"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onDeleteRecord(rec.id)}
-                              title="Excluir registro"
-                              className="p-1.5 rounded-md text-red-500 hover:bg-red-50 cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
                           </div>
                         </td>
                       </tr>

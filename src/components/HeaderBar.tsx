@@ -67,6 +67,11 @@ const SECTION_HEADERS: Record<NavSection, { context: string; subtitle: string }>
     subtitle:
       '1.3.3.4 Estratificação dos Problemas: análise digital por veículo/equipamento, tipo de ocorrência, motorista/operador e criticidade',
   },
+  'qualidade-iv': {
+    context: 'Frota Pau Brasil – Brejo',
+    subtitle:
+      '1.3.7 Qualidade (IV): Indicador de Valor para medir a qualidade dos checklists realizados na plataforma',
+  },
   'visao-geral': {
     context: 'Frota Pau Brasil – Brejo',
     subtitle: 'Acompanhe em tempo real o desempenho e a documentação da frota',
@@ -158,7 +163,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                                   ? '1.3.2 Melhoria Progressiva'
                                   : activeSection === 'estratificacao-problemas'
                                     ? '1.3.3.4 Estratificação dos Problemas'
-                                    : '1.1.2 Controle de Documentos'}
+                                    : activeSection === 'qualidade-iv'
+                                      ? '1.3.7 Qualidade (IV)'
+                                      : '1.1.2 Controle de Documentos'}
               </span>
               <span className="mx-2 text-slate-300 font-normal" aria-hidden="true">
                 |
@@ -182,7 +189,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         activeSection !== 'padroes-visuais' &&
         activeSection !== 'lista-requisitos' &&
         activeSection !== 'melhoria-progressiva' &&
-        activeSection !== 'estratificacao-problemas' && (
+        activeSection !== 'estratificacao-problemas' &&
+        activeSection !== 'qualidade-iv' && (
         <div className="pt-1.5 border-t border-slate-200/70">
           <nav
             aria-label="Subseções de 1.1.2 Controle de Documentos"

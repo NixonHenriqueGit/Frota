@@ -289,6 +289,7 @@ export function parsePuxadaRecord(
         typeof parsed.percentual === 'number' && Number.isFinite(parsed.percentual)
           ? Math.max(0, Math.min(100, Math.round(parsed.percentual)))
           : percent,
+      momento: parsed.momento === 'Retorno' ? 'Retorno' : 'Saída',
       items: cleanItems,
     };
   } catch {

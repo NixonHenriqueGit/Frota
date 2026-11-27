@@ -14,6 +14,7 @@ interface Bloco1HubViewProps {
   safetyChecksCount: number;
   progressiveImprovementCount: number;
   problemStratificationCount: number;
+  qualityIvPct: number;
   activeGroup: '1.1' | '1.2' | '1.3' | null;
   onSelectGroup: (group: '1.1' | '1.2' | '1.3' | null) => void;
 }
@@ -53,6 +54,7 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
   safetyChecksCount,
   progressiveImprovementCount,
   problemStratificationCount,
+  qualityIvPct,
   activeGroup,
   onSelectGroup,
 }) => {
@@ -175,8 +177,17 @@ export const Bloco1HubView: React.FC<Bloco1HubViewProps> = ({
           'Estratificação por veículo/equipamento de manuseio, tipo de ocorrência, motorista/operador e criticidade',
         countLabel: `${String(problemStratificationCount).padStart(2, '0')} ocorr.`,
       },
+      {
+        id: 'qualidade-iv',
+        group: '1.3',
+        kicker: '1.3.7 · INDICADOR DE VALOR',
+        title: '1.3.7 QUALIDADE (IV)',
+        subtitle:
+          'Indicador de Valor (IV) para medir a qualidade dos checklists realizados: cobertura, rastreio, rigor e tratativa',
+        countLabel: `IV ${qualityIvPct}%`,
+      },
     ],
-    [progressiveImprovementCount, problemStratificationCount]
+    [progressiveImprovementCount, problemStratificationCount, qualityIvPct]
   );
 
   const allModules = useMemo(

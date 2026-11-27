@@ -207,6 +207,7 @@ export interface BlitzInspectionPayload {
   placa: string;
   nome: string;
   cpf: string;
+  momento?: StratifiedProblemMoment;
   items: Record<string, BlitzItemStatus>;
 }
 
@@ -236,6 +237,7 @@ export interface CaminhoesCheckPayload {
   data: string;
   responsavel: string;
   percentual: number;
+  momento?: StratifiedProblemMoment;
   items: Record<string, BlitzItemStatus>;
 }
 
@@ -264,6 +266,7 @@ export interface PuxadaCheckPayload {
   data: string;
   responsavel: string;
   percentual: number;
+  momento?: StratifiedProblemMoment;
   items: Record<string, BlitzItemStatus>;
 }
 
@@ -381,43 +384,59 @@ export type NavSection =
   | 'lista-requisitos'
   | 'melhoria-progressiva'
   | 'estratificacao-problemas'
+  | 'qualidade-iv'
   | 'visao-geral'
   | 'cadastro'
   | 'documentos'
   | 'evidencias'
   | 'checklists';
 
-export type ProblemCriticalityTier = 'CRÍTICO' | 'MENOS CRÍTICO';
+export type StratifiedProblemCriticality = 'IMEDIATA' | 'ALTA' | 'MÉDIA';
 
-export type ProblemSeverityLevel =
-  | 'BLOQUEIO IMEDIATO'
-  | 'GRAVE'
-  | 'MÉDIO'
-  | 'LEVE';
+export type StratifiedProblemEquipment =
+  | 'Caminhão'
+  | 'Cavalo Mecânico'
+  | 'Empilhadeira';
 
-export type ProblemAssetKind =
-  | 'Veículo de Entrega'
-  | 'Equipamento de Manuseio'
-  | 'Veículo de Puxada';
+export type StratifiedProblemCostCenter = 'Entrega' | 'Puxada' | 'Armazém';
 
-export type ProblemResolutionStatus = 'Aberto' | 'Em tratativa' | 'Resolvido';
+export type StratifiedProblemMoment = 'Saída' | 'Retorno';
+
+export type StratifiedProblemCategory = 'Segurança' | 'Qualidade';
+
+export type StratifiedMonthShort =
+  | 'JAN'
+  | 'FEV'
+  | 'MAR'
+  | 'ABR'
+  | 'MAI'
+  | 'JUN'
+  | 'JUL'
+  | 'AGO'
+  | 'SET'
+  | 'OUT'
+  | 'NOV'
+  | 'DEZ';
 
 export interface StratifiedProblemRecord {
   id: string;
+  sourceKind: 'blitz' | 'mensal' | 'manual' | 'seed';
   sourceLabel: string;
   isEditable: boolean;
-  month: ComplianceMonth;
+  month: StratifiedMonthShort;
   date: string;
   plate: string;
-  assetKind: ProblemAssetKind;
+  equipment: StratifiedProblemEquipment;
+  costCenter: StratifiedProblemCostCenter;
   driverOrOperator: string;
   occurrenceType: string;
   itemName: string;
-  classification: 'SEGURANÇA' | 'QUALIDADE';
-  severityLevel: ProblemSeverityLevel;
-  criticalityTier: ProblemCriticalityTier;
+  category: StratifiedProblemCategory;
+  criticality: StratifiedProblemCriticality;
+  moment: StratifiedProblemMoment;
+  resolutionDays: number;
+  resolved: boolean;
   details: string;
-  status: ProblemResolutionStatus;
 }
 
 export interface DashboardFilters {
