@@ -164,6 +164,16 @@ export interface QualityPlateRankItem {
   nokTotal: number;
 }
 
+export interface QualityPersonRankItem {
+  name: string;
+  count: number;
+  avgIvPct: number;
+  avgConformityPct: number;
+  avgTraceabilityPct: number;
+  nokTotal: number;
+  flaggedCount: number;
+}
+
 export interface QualityHeatmapRow {
   familyId: QualityChecklistFamilyId;
   shortLabel: string;
@@ -228,6 +238,8 @@ export interface QualityIvAnalysis {
   flagPareto: QualityFlagParetoItem[];
   plateRankingBottom: QualityPlateRankItem[];
   plateRankingTop: QualityPlateRankItem[];
+  inspectorRanking: QualityPersonRankItem[];
+  driverRanking: QualityPersonRankItem[];
   heatmapMonths: StratifiedMonthShort[];
   heatmapRows: QualityHeatmapRow[];
   families: QualityFamilySummary[];
@@ -1388,6 +1400,51 @@ export function computeQualityIvAnalysis({
     .sort((a, b) => b.avgIvPct - a.avgIvPct || b.executionsCount - a.executionsCount)
     .slice(0, 8);
 
+  // Inspector & Driver Rankings
+  const ignoredPeople = new Set([
+    '',
+    '—',
+    '-',
+    'não informado',
+    'guarabira',
+    'pau brasil (consolidado)',
+    'auditoria base',
+    'consolidado ytd',
+    'padrão visual',
+    'entrega',
+    'puxada',
+    'cadastro documental',
+    'sistema frota',
+  ]);
+
+  const buildPersonRanking = (
+    pickName: (exec: QualityAuditExecutionRow) => string
+  ): QualityPersonRankItem[] => {
+    const map = new Map<string, QualityAuditExecutionRow[]>();
+    for (const exec of filteredExecutions) {
+      const rawName = (pickName(exec) ?? '').trim();
+      if (!rawName || ignoredPeople.has(rawName.toLowerCase())) continue;
+      const list = map.get(rawName) ?? [];
+      list.push(exec);
+      map.set(rawName, list);
+    }
+    return Array.from(map.entries())
+      .map(([name, rows]) => ({
+        name,
+        count: rows.length,
+        avgIvPct: Math.round(avg(rows.map((r) => r.qualityIvPct))),
+        avgConformityPct: Math.round(avg(rows.map((r) => r.conformityPct))),
+        avgTraceabilityPct: Math.round(avg(rows.map((r) => r.traceabilityPct))),
+        nokTotal: rows.reduce((s, r) => s + r.nokCount, 0),
+        flaggedCount: rows.filter((r) => r.flags.length > 0).length,
+      }))
+      .sort((a, b) => b.count - a.count || b.avgIvPct - a.avgIvPct)
+      .slice(0, 10);
+  };
+
+  const inspectorRanking = buildPersonRanking((e) => e.responsible);
+  const driverRanking = buildPersonRanking((e) => e.driverOrOperator);
+
   // Heatmap Matrix (Checklist x Month)
   const hasLateMonths = allExecutions.some(
     (e) =>
@@ -1458,6 +1515,8 @@ export function computeQualityIvAnalysis({
     flagPareto,
     plateRankingBottom,
     plateRankingTop,
+    inspectorRanking,
+    driverRanking,
     heatmapMonths,
     heatmapRows,
     families,
